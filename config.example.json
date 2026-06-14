@@ -1,0 +1,8 @@
+{
+  "football_data_token": "<your-football-data.org-token>",
+  "competition": "WC",
+  "season": 2026,
+  "cache_ttl_seconds": 60,
+  "venue_timezone": "America/New_York",
+  "use_mock_when_unavailable": false
+}
