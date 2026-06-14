@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>World Cup Pilot</title>
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<style>
+  :root {
+    --bg:        #050505;
+    --gold:      #e9c46a;
+    --gold-soft: #f5d98b;
+    --line:      rgba(255,255,255,.10);
+    --line-2:    rgba(255,255,255,.18);
+    --glass:     rgba(255,255,255,.045);
+    --glass-2:   rgba(255,255,255,.08);
+    --text:      #f4f5f7;
+    --dim:       #aeb3bb;
+    --mute:      #6e7480;
+    --live:      #28c66b;
+    --mono:      ui-monospace, "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  /* ===== light theme ===== */
+  body[data-theme="light"] {
+    --bg: #eef1f5; --text: #1a1f24; --dim: #4b5563; --mute: #7b8290;
+    --line: rgba(0,0,0,.12); --line-2: rgba(0,0,0,.22);
+    --glass: rgba(0,0,0,.045); --glass-2: rgba(0,0,0,.08);
+    --gold: #9a6f00; --gold-soft: #7a5800;   /* darker so gold text reads on light */
+  }
+  /* gold-filled controls: white text in light mode (dark text was unreadable) */
+  body[data-theme="light"] .toggle button.active,
+  body[data-theme="light"] .tz-check.on,
+  body[data-theme="light"] .gcard .gh .badge,
+  body[data-theme="light"] .ed-vbtn,
+  body[data-theme="light"] .hl-btn2 { color: #fff; }
+  body[data-theme="light"] .today-btn {
+    background: var(--gold); border-color: var(--gold); color: #fff;
+  }
+  body[data-theme="light"] .toggle button { color: var(--dim); }
+  body[data-theme="light"] .chip.active .day { color: var(--gold); }
+  body[data-theme="light"] .bg {
+    background: radial-gradient(1200px 700px at 78% -10%, rgba(184,134,11,.10), transparent 60%), #eef1f5;
+  }
+  body[data-theme="light"] .bg::before { opacity: .12; }
+  body[data-theme="light"] .bg::after {
+    background: linear-gradient(180deg, rgba(255,255,255,.45), rgba(238,241,245,.86) 55%, rgba(238,241,245,.96));
+  }
+  body[data-theme="light"] header {
+    background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
+  }
+  body[data-theme="light"] .modal,
+  body[data-theme="light"] .acc-inner,
+  body[data-theme="light"] .vload { background: #ffffff; }
+  body[data-theme="light"] .acc-inner { border-color: var(--line); }
+  body[data-theme="light"] .player,
+  body[data-theme="light"] .squad-grp li,
+  body[data-theme="light"] .tl { border-bottom-color: rgba(0,0,0,.07); }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased; letter-spacing: -.01em;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ===== full-screen World-Cup background (black-centric) ===== */
+  .bg {
+    position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(233,196,106,.16), transparent 60%),
+      radial-gradient(900px 600px at 8% 110%, rgba(233,196,106,.08), transparent 55%),
+      #050505;
+  }
+  /* drop assets/bg.jpg to override; falls back to the gradient above if missing */
+  .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg.jpg');
+    background-size: cover; background-position: center;
+    opacity: .42;
+  }
+  .bg::after {           /* darkening + subtle hex pitch texture */
+    content: ''; position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, rgba(5,5,5,.55) 0%, rgba(5,5,5,.78) 55%, rgba(5,5,5,.92) 100%),
+      repeating-linear-gradient(60deg, transparent 0 22px, rgba(255,255,255,.012) 22px 23px);
+  }
+
+  /* ===== header ===== */
+  header {
+    display: flex; align-items: center; gap: 20px;
+    padding: 16px 30px; backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.15));
+    border-bottom: 1px solid var(--line);
+    z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .brand .emblem {
+    width: 48px; height: 48px; border-radius: 13px; flex: 0 0 auto;
+    background: #fff; display: grid; place-items: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.15);
+  }
+  .brand .emblem img { width: 40px; height: 40px; object-fit: contain; display: block; }
+  .brand .wordmark {
+    display: flex; flex-direction: column; line-height: 1.05; min-width: 0;
+  }
+  .brand .wordmark .k {
+    font-size: 11px; letter-spacing: .42em; color: var(--gold);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .brand .wordmark .t {
+    font-size: 19px; font-weight: 800; letter-spacing: -.01em;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .brand .wordmark .t .yr { color: var(--gold); font-family: var(--mono); }
+  .brand .wordmark .t-host { font-size: 11px; color: var(--dim); font-weight: 600; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+
+  .head-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .src-badge {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    padding: 4px 9px; border-radius: 999px; letter-spacing: .08em;
+    border: 1px solid var(--line-2); color: var(--dim);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .src-badge .led { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); }
+  .src-badge.live { color: var(--live); border-color: rgba(40,198,107,.4); }
+  .src-badge.live .led { background: var(--live); box-shadow: 0 0 0 3px rgba(40,198,107,.18); }
+  .src-badge.mock { color: var(--gold); border-color: rgba(233,196,106,.4); }
+  .src-badge.mock .led { background: var(--gold); }
+
+  .icon-btn {
+    background: var(--glass); border: 1px solid var(--line-2); color: var(--dim);
+    width: 36px; height: 36px; border-radius: 9px; cursor: pointer; font-size: 15px;
+    display: grid; place-items: center; transition: .15s;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--gold); }
+
+  /* edition selector — unified with app controls (custom arrow, no native chrome) */
+  .edition-sel { -webkit-appearance: none; appearance: none; margin-left: 18px;
+    background: var(--glass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23e9c46a' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center;
+    border: 1px solid var(--line-2); color: var(--text); border-radius: 11px;
+    padding: 9px 30px 9px 14px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; letter-spacing: -.01em; }
+  .edition-sel:hover { border-color: var(--gold); }
+  .edition-sel:focus { outline: none; border-color: var(--gold); }
+
+  /* edition overview (past World Cups) */
+  .ed-wrap { display: flex; justify-content: center; padding: 30px 16px; }
+  .ed-card { width: min(560px, 100%); text-align: center;
+    background: var(--glass); border: 1px solid var(--line); border-radius: 20px; padding: 36px 28px;
+    background-image: radial-gradient(500px 220px at 50% 0, rgba(233,196,106,.16), transparent 70%); }
+  .ed-trophy { font-size: 46px; }
+  .ed-year { font-size: 26px; font-weight: 800; margin-top: 6px; }
+  .ed-host { color: var(--dim); font-size: 14px; margin-top: 4px; }
+  .ed-final { margin: 22px 0; }
+  .ed-champ { font-size: 20px; } .ed-champ b { color: var(--gold-soft); font-weight: 800; }
+  .ed-champ .lbl, .ed-ru .lbl { font-size: 11px; color: var(--mute); margin-right: 8px; font-weight: 700; }
+  .ed-ru { font-size: 15px; color: var(--dim); margin-top: 6px; }
+  .ed-score { font-family: var(--mono); font-size: 13px; color: var(--mute); margin-top: 6px; }
+  .ed-videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+  .ed-vbtn { background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1a1205;
+    border: 0; border-radius: 10px; padding: 11px 18px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+  .ed-vbtn:hover { filter: brightness(1.06); }
+  .ed-note { font-size: 11px; color: var(--mute); margin-top: 18px; }
+  /* past-edition banner (above the schedule) */
+  .ed-banner { max-width: 1700px; margin: 6px auto 14px; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 18px;
+    background: var(--glass); border: 1px solid var(--line); border-radius: 14px;
+    background-image: radial-gradient(400px 120px at 0 0, rgba(233,196,106,.14), transparent 70%); }
+  .ed-b-title { font-size: 16px; font-weight: 800; }
+  .ed-b-score { font-size: 12px; color: var(--mute); font-weight: 600; }
+  .ed-save { font-size: 11px; color: var(--live); font-weight: 700; }
+  .ed-b-honors { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 7px; }
+  .ed-honor { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--dim); }
+  .ed-honor b { color: var(--gold-soft); }
+  .ed-mvp-c { color: var(--mute); font-size: 11px; }
+  .ed-flag { width: 22px; height: 15px; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .ed-mascot { flex: 0 0 auto; }
+  .ed-mascot img { height: 56px; width: auto; object-fit: contain; }
+  .ed-b-vids { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ed-b-vids .ed-vbtn { padding: 8px 13px; font-size: 12.5px; border-radius: 9px; }
+
+  /* ===== view toggle ===== */
+  .toggle {
+    display: flex; background: var(--glass); border: 1px solid var(--line-2);
+    border-radius: 11px; padding: 4px; gap: 4px; position: relative;
+  }
+  .toggle button {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    color: var(--dim); font: inherit; font-weight: 700; font-size: 13px;
+    padding: 7px 18px; border-radius: 8px; transition: .18s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .toggle button .ic { font-size: 14px; }
+  .toggle button.active { color: #1a1205; background: linear-gradient(180deg, var(--gold-soft), var(--gold)); }
+
+  /* single 현지시간 checkbox-style toggle */
+  .tz-check { display: flex; align-items: center; gap: 7px; cursor: pointer; font: inherit;
+    font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 11px;
+    background: var(--glass); border: 1px solid var(--line-2); color: var(--dim); }
+  .tz-check::before { content: "☐"; font-size: 15px; line-height: 1; }
+  .tz-check:hover { color: var(--text); }
+  .tz-check.on { color: #1a1205; border-color: var(--gold);
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); }
+  .tz-check.on::before { content: "☑"; }
+
+  /* ===== date strip (horizontal scroll) ===== */
+  .datebar { display: flex; align-items: center; gap: 8px; padding: 14px 22px 12px; z-index: 10; }
+  .datebar .nav {
+    flex: 0 0 auto; width: 34px; height: 56px; border-radius: 10px; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--line); color: var(--dim);
+    display: grid; place-items: center; font-size: 16px; transition: .15s;
+  }
+  .datebar .nav:hover { color: var(--text); border-color: var(--gold); }
+  .date-scroll {
+    display: flex; gap: 8px; overflow-x: auto; scroll-behavior: smooth;
+    padding: 2px; scrollbar-width: none; flex: 1 1 auto;
+  }
+  .date-scroll::-webkit-scrollbar { display: none; }
+  .chip {
+    position: relative;
+    flex: 0 0 auto; min-width: 78px; padding: 9px 14px; border-radius: 12px;
+    background: var(--glass); border: 1px solid var(--line); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: .15s; user-select: none;
+  }
+  .chip:hover { border-color: var(--line-2); background: var(--glass-2); }
+  .chip .dow { font-size: 11px; color: var(--mute); font-weight: 700; letter-spacing: .06em; }
+  .chip .day { font-size: 18px; font-weight: 800; font-family: var(--mono); }
+  .chip .mon { font-size: 10px; color: var(--dim); }
+  .chip .cnt { font-size: 9.5px; color: var(--gold); font-family: var(--mono); margin-top: 1px; }
+  .chip.active {
+    background: linear-gradient(180deg, rgba(233,196,106,.22), rgba(233,196,106,.06));
+    border-color: var(--gold);
+  }
+  .chip.active .day { color: var(--gold-soft); }
+  .chip.today { border-color: rgba(233,196,106,.45); }
+  .chip .todaybadge { display: none; }
+  .chip.today .todaybadge {
+    display: block; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1a1205;
+    font-size: 8.5px; font-weight: 800; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  .today-btn {
+    flex: 0 0 auto; height: 56px; padding: 0 16px; border-radius: 10px; cursor: pointer;
+    background: linear-gradient(180deg, rgba(233,196,106,.18), rgba(233,196,106,.05));
+    border: 1px solid rgba(233,196,106,.5); color: var(--gold-soft);
+    display: grid; place-items: center; font-weight: 800; font-size: 13px; transition: .15s;
+  }
+  .today-btn:hover { background: rgba(233,196,106,.25); }
+
+  /* ===== main scroll area ===== */
+  main {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 26px 60px;
+    scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
+  }
+  main::-webkit-scrollbar { width: 10px; }
+  main::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+
+  .day-head {
+    display: flex; align-items: baseline; gap: 12px; margin: 18px 4px 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .day-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
+  .day-head .sub { font-size: 12px; color: var(--mute); font-family: var(--mono); }
+
+  /* ===== match card (time view) ===== */
+  .matches { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center; }
+  .match {
+    display: grid; grid-template-columns: 170px 1fr auto 1fr; align-items: center; gap: 14px;
+    background: var(--glass); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 18px; transition: .15s;
+  }
+  .match:hover { border-color: var(--line-2); background: var(--glass-2); }
+  .match .kick { text-align: center; }
+  .match .kick .time { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--gold-soft); }
+  .match .kick { padding: 0 4px; }
+  .match .kick .grp  { font-size: 10px; color: var(--mute); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .team {
+    display: flex; align-items: center; gap: 11px; cursor: pointer; min-width: 0;
+    padding: 4px 6px; border-radius: 9px; transition: .12s;
+  }
+  .team:hover { background: rgba(255,255,255,.06); }
+  /* team click zone = flag+name only (hug outer edges); the wide middle toggles detail */
+  .team.home { justify-self: start; }
+  .team.away { flex-direction: row-reverse; text-align: right; justify-self: end; }
+  .team .flag {
+    width: 38px; height: 26px; object-fit: cover; border-radius: 4px; flex: 0 0 auto;
+    background: var(--glass-2); box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  .team .nm { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rk { font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--gold-soft);
+    background: rgba(233,196,106,.14); border-radius: 5px; padding: 1px 5px; flex: 0 0 auto; }
+  .team .tla { display: none; }
+  .center { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 72px; }
+  .center .sc { font-family: var(--mono); font-weight: 800; font-size: 20px; letter-spacing: .04em; }
+  .center .vs { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--mute); }
+  .pill {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .08em; padding: 2px 8px; border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .pill.ft   { background: rgba(255,255,255,.1); color: var(--dim); }
+  .pill.live { background: rgba(40,198,107,.16); color: var(--live); }
+  .pill.live::before { content:'● '; }
+
+  .match { cursor: pointer; }
+  .center .chev { display: block; font-size: 11px; color: var(--mute); margin-top: 3px; transition: transform .2s; }
+  .center .chev.up { transform: rotate(180deg); color: var(--gold); }
+
+  /* ===== match detail accordion ===== */
+  .match-wrap { width: 100%; max-width: 1700px; margin: 0 auto; }
+  .day-head { max-width: 1700px; margin-left: auto; margin-right: auto; }
+  .acc { overflow: hidden; max-height: 0; transition: max-height .28s ease; }
+  .acc.open { max-height: 1400px; }
+  .acc-inner {
+    margin: 6px 0 4px; background: rgba(255,255,255,.03);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  .acc-empty { padding: 26px; text-align: center; color: var(--mute); font-size: 13px; }
+  /* loading aligns under the score column (skip the 170px kick column, center in the rest) */
+  .acc-load { display: flex; align-items: center; padding: 24px 16px; color: var(--mute); font-size: 13px; }
+  .acc-load::before { content: ""; flex: 0 0 184px; }
+  .acc-load > span { flex: 1 1 auto; text-align: center; }
+  .venue-banner {
+    position: relative; height: 118px; background-size: cover; background-position: center 40%;
+  }
+  .venue-banner .vb-grad { position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.82)); }
+  .venue-banner .vb-txt { position: absolute; left: 16px; bottom: 10px; display: flex; flex-direction: column; }
+  .venue-banner .vb-txt b { font-size: 16px; font-weight: 800; }
+  .venue-banner .vb-txt span { font-size: 11.5px; color: var(--dim); }
+  .acc-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; padding: 14px 16px; }
+  .ev-head { display: flex; align-items: center; justify-content: space-between; }
+  .hl-actions { display: flex; gap: 8px; margin-right: 16px; }
+  .hl-btn2 { flex: 0 0 auto; border: 0; border-radius: 8px; cursor: pointer; padding: 7px 13px;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1a1205;
+    font: inherit; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
+  .hl-btn2:hover { filter: brightness(1.08); }
+  /* highlight video popup */
+  #voverlay { z-index: 70; }
+  .vbox { width: min(960px, 94vw); position: relative; }
+  .vframe { position: relative; width: 100%; padding-top: 56.25%; background: #000;
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2);
+    box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+  .vframe iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .vload { padding: 60px; text-align: center; color: var(--dim); background: #0c0c0c;
+    border-radius: 14px; border: 1px solid var(--line-2); }
+  .vclose { position: absolute; top: -40px; right: 0; width: 34px; height: 34px; border-radius: 9px;
+    border: 1px solid var(--line-2); background: var(--glass); color: var(--text); cursor: pointer; font-size: 16px; }
+  .acc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .achip { background: var(--glass); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; }
+  .achip .l { font-size: 10px; color: var(--mute); text-transform: uppercase; letter-spacing: .05em; display: block; }
+  .achip .v { font-size: 14px; font-weight: 700; }
+  /* betting odds (1X2) */
+  .odds { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .odds .odds-lbl { font-size: 10px; color: var(--mute); margin-right: 4px; text-align: right; line-height: 1.2; }
+  .odd { background: var(--glass); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px;
+    text-align: center; min-width: 56px; }
+  .odd .k { font-size: 9px; color: var(--mute); display: block; letter-spacing: .04em; }
+  .odd .v { font-family: var(--mono); font-weight: 800; font-size: 15px; color: var(--gold-soft); }
+  .acc-sect { font-size: 11px; color: var(--gold); font-weight: 800; letter-spacing: .12em;
+    text-transform: uppercase; padding: 6px 16px 4px; }
+  /* horizontal time-flow timeline (left = kickoff, right = full time) */
+  .tl-h-scroll { display: flex; gap: 0; overflow-x: auto; padding: 10px 16px 18px;
+    scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; position: relative; }
+  .tl-seg { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px;
+    padding: 0 16px; min-width: 150px; border-left: 1px dashed var(--line); }
+  .tl-seg:first-child { border-left: 0; padding-left: 2px; }
+  .tl-seg-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--mute);
+    text-transform: uppercase; }
+  .tl-seg-events { display: flex; gap: 10px; align-items: flex-start; min-height: 80px; }
+  .tl-seg-empty { color: var(--mute); opacity: .4; font-size: 11px; align-self: center; }
+  .tl-h-scroll::-webkit-scrollbar { height: 8px; }
+  .tl-h-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
+  .tle { flex: 0 0 auto; width: 116px; background: var(--glass); border: 1px solid var(--line);
+    border-radius: 11px; padding: 9px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .tle-top { display: flex; align-items: center; gap: 6px; }
+  .tle-flag { width: 20px; height: 13px; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .tle-ic { font-size: 15px; }
+  .tle-min { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--gold-soft); }
+  .tle-pl { font-size: 11.5px; font-weight: 600; text-align: center; line-height: 1.25;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .tle.goal { border-color: rgba(233,196,106,.5); background: rgba(233,196,106,.08); }
+  .tle.goal .tle-pl { color: var(--gold-soft); font-weight: 700; }
+  .tle.clk { cursor: pointer; }
+  .tle.clk:hover { border-color: var(--gold); background: rgba(233,196,106,.16); }
+  .tle-play { font-size: 9px; color: var(--gold); }
+  .og-tag { font-size: 9px; font-weight: 800; color: #ff8a7a; background: rgba(239,68,68,.18);
+    border-radius: 4px; padding: 0 4px; letter-spacing: .03em; }
+  .tle-top { position: relative; }
+  .sect-hint { color: var(--mute); font-weight: 600; letter-spacing: 0; font-size: 10px; text-transform: none; }
+
+  /* ===== knockout bracket ===== */
+  .bracket { display: flex; gap: 12px; align-items: stretch; overflow-x: auto; padding: 10px 4px 40px;
+    scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .bracket::-webkit-scrollbar { height: 9px; }
+  .bracket::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
+  .br-col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px;
+    min-width: 156px; flex: 1 1 0; }
+  .br-center { min-width: 190px; justify-content: center; gap: 12px; }
+  .br-rnd { font-size: 11px; font-weight: 800; color: var(--gold); text-align: center;
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+  .br-rnd.third { margin-top: 18px; color: var(--mute); }
+  .br-match { background: var(--glass); border: 1px solid var(--line); border-radius: 10px;
+    padding: 7px 9px; cursor: pointer; transition: .12s; }
+  .br-match:hover { border-color: var(--gold); background: var(--glass-2); }
+  .br-match.islive { border-color: var(--live); box-shadow: 0 0 0 1px var(--live) inset; }
+  .br-team { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
+  .br-team img { width: 22px; height: 15px; object-fit: cover; border-radius: 3px; flex: 0 0 auto; }
+  .br-nm { flex: 1 1 auto; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .br-sc { font-family: var(--mono); font-weight: 800; font-size: 13px; color: var(--gold-soft); }
+  .br-meta { font-size: 9.5px; color: var(--mute); text-align: center; margin-top: 4px; }
+  .br-center .br-match { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset;
+    background: linear-gradient(180deg, rgba(233,196,106,.12), var(--glass)); }
+  .br-tbd { text-align: center; color: var(--mute); font-size: 12px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 10px; }
+
+  /* ===== group view ===== */
+  .groups {
+    display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    max-width: 1500px; margin: 14px auto 0;
+  }
+  .gcard { background: var(--glass); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .gcard .gh {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    background: linear-gradient(90deg, rgba(233,196,106,.16), transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  .gcard .gh .badge {
+    font-family: var(--mono); font-weight: 800; font-size: 13px; color: #1a1205;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  }
+  .gcard .gh h3 { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .04em; }
+  table.stand { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.stand th {
+    text-align: center; color: var(--mute); font-weight: 700; font-size: 10px;
+    padding: 8px 4px; letter-spacing: .04em; border-bottom: 1px solid var(--line);
+  }
+  table.stand th.team-col, table.stand td.team-col { text-align: left; padding-left: 14px; }
+  table.stand td { text-align: center; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  table.stand tr:last-child td { border-bottom: 0; }
+  table.stand tr.qual td.pos { box-shadow: inset 3px 0 0 var(--gold); }
+  table.stand .pts { font-family: var(--mono); font-weight: 800; color: var(--gold-soft); }
+  table.stand .pos { color: var(--mute); font-family: var(--mono); }
+  .gteam { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+  .gteam:hover .gnm { color: var(--gold-soft); }
+  .gteam img { width: 26px; height: 18px; object-fit: cover; border-radius: 3px; }
+  .gteam .gnm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ===== empty / loading ===== */
+  .empty { text-align: center; color: var(--mute); padding: 80px 20px; font-size: 14px; }
+  .empty .big { font-size: 40px; margin-bottom: 10px; opacity: .6; }
+
+  /* ===== team detail popup ===== */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    background: rgba(0,0,0,.66); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 30px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    width: min(620px, 100%); max-height: 86vh; overflow: hidden;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #141414, #0b0b0b);
+    border: 1px solid var(--line-2); border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7); animation: pop .2s ease;
+  }
+  .modal > .mh, .modal > .pcard-head { flex: 0 0 auto; }     /* fixed header */
+  .modal > .mb { flex: 1 1 auto; min-height: 0; overflow-y: auto; }  /* only body scrolls */
+  @keyframes pop { from { transform: translateY(14px) scale(.98); opacity: 0; } }
+  .modal .mh {
+    position: relative; padding: 30px 28px 22px;
+    background:
+      radial-gradient(600px 200px at 100% 0, rgba(233,196,106,.2), transparent 70%),
+      linear-gradient(180deg, rgba(255,255,255,.05), transparent);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 20px;
+  }
+  .modal .mh img.bigflag {
+    width: 92px; height: 62px; object-fit: cover; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.6); flex: 0 0 auto;
+  }
+  .modal .mh .ti .nm { font-size: 24px; font-weight: 800; }
+  .modal .mh .ti .meta { color: var(--dim); font-size: 13px; margin-top: 4px; }
+  .bell {
+    background: var(--glass); border: 1px solid var(--line-2); color: var(--dim);
+    border-radius: 9px; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;
+    width: 34px; height: 34px; display: grid; place-items: center; filter: grayscale(1) opacity(.7);
+  }
+  .bell:hover { border-color: var(--gold); }
+  .bell.on { background: rgba(233,196,106,.18); border-color: var(--gold); filter: none; }
+  .modal .mh .bell { position: absolute; top: 16px; right: 60px; }
+  /* team header: flag colors washed across the background */
+  .teamhead { position: relative; overflow: hidden; }
+  .teamhead::before { content: ""; position: absolute; inset: 0; background-image: var(--flagbg);
+    background-size: cover; background-position: center; filter: blur(38px) saturate(1.5); opacity: .2; }
+  .teamhead > * { position: relative; }
+  .cmeta { font-size: 12px; color: var(--dim); margin-top: 8px; line-height: 1.6; }
+  .cmeta b { color: var(--text); font-weight: 700; }
+  .cmeta .dot { color: var(--mute); margin: 0 7px; }
+  /* World Cup history table */
+  .wc-table { width: 100%; border-collapse: collapse; }
+  .wc-table tr { border-bottom: 1px solid var(--line); }
+  .wc-table tr:last-child { border-bottom: 0; }
+  .wc-table th { text-align: left; color: var(--mute); font-weight: 700; font-size: 12px;
+    padding: 8px 10px 8px 0; width: 84px; white-space: nowrap; vertical-align: top; }
+  .wc-table td { padding: 8px 0; font-weight: 700; font-size: 13.5px; }
+  .wc-table .wc-yr { color: var(--gold-soft); font-weight: 600; font-size: 12px; font-family: var(--mono); }
+  .avatar.coach { background: var(--gold-soft) !important; }
+  /* small country map outline next to the flag */
+  .cmap { width: 56px; height: 56px; flex: 0 0 auto; align-self: center;
+    background-color: var(--gold-soft);
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center; opacity: .9; }
+  /* player detail table */
+  .ptable { width: 100%; border-collapse: collapse; }
+  .ptable tr { border-bottom: 1px solid var(--line); }
+  .ptable tr:last-child { border-bottom: 0; }
+  .ptable th { text-align: left; color: var(--mute); font-weight: 700; font-size: 12px;
+    padding: 10px 10px 10px 0; width: 84px; white-space: nowrap; }
+  .ptable td { padding: 10px 0; font-weight: 700; font-size: 14px; }
+  .ptable .muted { color: var(--mute); font-weight: 500; }
+  /* schedule list */
+  .fixtures { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .fx { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px;
+    background: var(--glass); border: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+  .fx:hover { border-color: var(--gold); background: var(--glass-2); }
+  .fx-date { font-family: var(--mono); font-size: 11.5px; color: var(--dim); min-width: 74px; }
+  .fx-side { color: var(--mute); font-size: 11px; min-width: 18px; }
+  .fx-flag { width: 24px; height: 16px; object-fit: cover; border-radius: 3px; }
+  .fx-opp { font-weight: 700; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fx-res { font-family: var(--mono); font-weight: 700; color: var(--gold-soft); }
+  .fx-sch { font-size: 10px; color: var(--mute); }
+  .modal .close {
+    position: absolute; top: 16px; right: 16px; width: 34px; height: 34px;
+    border-radius: 9px; border: 1px solid var(--line-2); background: var(--glass);
+    color: var(--dim); cursor: pointer; font-size: 17px;
+  }
+  .modal .close:hover { color: var(--text); border-color: var(--gold); }
+  .modal .mb { padding: 20px 28px 28px; }
+  #overlay .modal { width: min(1140px, 96%); }
+  .mb-cols { display: grid; grid-template-columns: minmax(300px, 1fr) 1.25fr; gap: 26px; align-items: start; }
+  .mb-col { min-width: 0; }
+  .mb-col .sect-title:first-child { margin-top: 0; }
+  @media (max-width: 760px) { .mb-cols { grid-template-columns: 1fr; } }
+  .factrow { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .fact {
+    background: var(--glass); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 14px; min-width: 110px;
+  }
+  .fact .l { font-size: 10px; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; }
+  .fact .v { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .sect-title { font-size: 11px; color: var(--gold); font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; margin: 24px 0 10px; }
+  .squad-grp { margin-bottom: 14px; }
+  .squad-grp .pos { font-size: 11px; color: var(--mute); font-weight: 700; margin-bottom: 6px; }
+  .squad-grp ul { list-style: none; margin: 0; padding: 0; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 14px; }
+  .player { display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05); border-radius: 8px; }
+  .player.clk { cursor: pointer; }
+  .player.clk:hover { background: rgba(255,255,255,.05); }
+  .player .avatar { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #0c0c0c; }
+  .player .pphoto { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
+    object-fit: cover; background: #1b1b1b; box-shadow: 0 0 0 1px var(--line-2); }
+  .player .pnum { font-family: var(--mono); font-size: 11px; color: var(--gold); font-weight: 700;
+    min-width: 22px; }
+  .player .pn { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player .pmeta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--mute);
+    flex: 0 0 auto; text-align: right; display: flex; align-items: center; gap: 6px; }
+  .agebadge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 999px; font-family: var(--font, inherit); }
+  .agebadge.young { background: rgba(90,169,255,.18); color: #7cc0ff; }
+  .agebadge.old { background: rgba(233,196,106,.18); color: var(--gold-soft); }
+  .agebadge.unavail { background: rgba(239,68,68,.2); color: #ff8a7a; }
+  .player.out { opacity: .55; }
+  .player.out .pn { text-decoration: line-through; text-decoration-color: rgba(239,68,68,.6); }
+  .pstatus { margin-top: 6px; display: inline-block; font-size: 12px; font-weight: 700; color: #ff8a7a;
+    background: rgba(239,68,68,.16); border-radius: 6px; padding: 3px 9px; }
+
+  /* live match emphasis (time view) — strong green border + pulse */
+  .match.islive { border: 2px solid var(--live);
+    background: linear-gradient(180deg, rgba(40,198,107,.14), var(--glass));
+    animation: livepulse 2s ease-in-out infinite; }
+  @keyframes livepulse {
+    0%,100% { box-shadow: 0 0 0 1px var(--live) inset, 0 0 14px rgba(40,198,107,.25); }
+    50%     { box-shadow: 0 0 0 1px var(--live) inset, 0 0 30px rgba(40,198,107,.5); }
+  }
+  .live-head { display: flex; align-items: center; gap: 8px; margin: 4px 4px 6px; max-width: 920px;
+    margin-left: auto; margin-right: auto; font-size: 11px; font-weight: 800; letter-spacing: .12em;
+    color: var(--live); text-transform: uppercase; }
+  .live-head::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--live);
+    box-shadow: 0 0 0 3px rgba(40,198,107,.25); animation: blink 1.3s infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* player detail popup (layers over team popup) */
+  #poverlay { z-index: 60; }
+  #poverlay .modal { width: min(440px, 100%); }
+  .pcard-head { display: flex; align-items: center; gap: 18px; padding: 26px 26px 20px;
+    background: radial-gradient(500px 180px at 100% 0, rgba(233,196,106,.18), transparent 70%); }
+  .pcard-head img { width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+    background: #1b1b1b; box-shadow: 0 6px 20px rgba(0,0,0,.5), 0 0 0 1px var(--line-2); }
+  .pcard-head .pnm { font-size: 20px; font-weight: 800; }
+  .pcard-head .psub { color: var(--dim); font-size: 13px; margin-top: 3px; }
+  .modal .loading { padding: 50px; text-align: center; color: var(--mute); }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <header>
+    <div class="brand">
+      <span class="emblem"><img id="edEmblem" src="/assets/logo.png" alt="FIFA World Cup" /></span>
+      <div class="wordmark">
+        <span class="k">FIFA</span>
+        <span class="t">WORLD CUP <span class="yr" id="seasonYr">2026</span></span>
+        <span class="t-host" id="edHost">USA · Canada · Mexico</span>
+      </div>
+    </div>
+    <select class="edition-sel" id="editionSel" onchange="changeEdition(this.value)" title="월드컵 회차"></select>
+    <div class="head-right">
+      <span class="src-badge" id="srcBadge"><span class="led"></span><span id="srcText">…</span></span>
+      <button class="icon-btn" id="themeBtn" title="테마 변경" onclick="cycleTheme()">🎨</button>
+      <button class="icon-btn" id="refreshBtn" title="새로고침">↻</button>
+      <button class="tz-check" id="tzToggle" onclick="toggleTz()" title="체크: 경기장 현지시간 / 해제: 한국시간">현지시간</button>
+      <div class="toggle" id="viewToggle">
+        <button id="tabTime" class="active" onclick="setView('time')"><span class="ic">🕘</span>일정</button>
+        <button id="tabGroup" onclick="setView('group')"><span class="ic">▦</span>조별</button>
+        <button id="tabBracket" onclick="setView('bracket')"><span class="ic">🏆</span>대진표</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- date strip: only in time view -->
+  <div class="datebar" id="datebar">
+    <div class="today-btn" id="todayBtn" onclick="goToday()">Today</div>
+    <div class="nav" onclick="scrollDates(-1)">‹</div>
+    <div class="date-scroll" id="dateScroll"></div>
+    <div class="nav" onclick="scrollDates(1)">›</div>
+  </div>
+
+  <main id="main"><div class="empty"><div class="big">⚽</div>불러오는 중…</div></main>
+
+  <!-- team detail popup -->
+  <div class="overlay" id="overlay" onclick="if(event.target===this) closeTeam()">
+    <div class="modal" id="modal"></div>
+  </div>
+  <!-- player detail popup (layers above team popup) -->
+  <div class="overlay" id="poverlay" onclick="if(event.target===this) closePlayer()">
+    <div class="modal" id="pmodal"></div>
+  </div>
+
+<script>
+const POS_ORDER = ["Goalkeeper", "Defence", "Midfield", "Offence"];
+const POS_KO = { Goalkeeper:"골키퍼", Defence:"수비수", Midfield:"미드필더", Offence:"공격수" };
+const POS_COLOR = { Goalkeeper:"#e9c46a", Defence:"#5aa9ff", Midfield:"#34c759", Offence:"#ff6b5a" };
+const posColor = k => POS_COLOR[k] || "#9aa6b2";
+const initials = n => (n||"").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase() || "·";
+function age(dob){
+  if (!dob) return "";
+  const b = new Date(dob), now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
+  return a;
+}
+const state = { view: "time", tz: "kst", edition: 2026, matches: [], dates: [], selectedDate: null, groups: [], source: "" };
+// light / dark theme — persisted
+function applyTheme(mode){
+  const light = mode==="light";
+  if (light) document.body.dataset.theme = "light"; else document.body.removeAttribute("data-theme");
+  localStorage.setItem("wc_theme", light?"light":"dark");
+  const b = document.getElementById("themeBtn");
+  if (b){ b.textContent = light?"🌙":"☀️"; b.title = light?"다크 모드로 전환":"라이트 모드로 전환"; }
+}
+function cycleTheme(){ applyTheme((localStorage.getItem("wc_theme")||"light")==="dark" ? "light" : "dark"); }
+applyTheme(localStorage.getItem("wc_theme")||"light");   // light is the default
+const playerCache = {};  // player id -> full squad info (from ESPN, photos merged from API-Football)
+let currentTeamName = "";
+// continent by team name (Korean + English)
+const CONTINENT = {
+  "Germany":"유럽 (Europe)","France":"유럽 (Europe)","Spain":"유럽 (Europe)","England":"유럽 (Europe)",
+  "Netherlands":"유럽 (Europe)","Belgium":"유럽 (Europe)","Croatia":"유럽 (Europe)","Portugal":"유럽 (Europe)",
+  "Switzerland":"유럽 (Europe)","Austria":"유럽 (Europe)","Sweden":"유럽 (Europe)","Norway":"유럽 (Europe)",
+  "Scotland":"유럽 (Europe)","Czechia":"유럽 (Europe)","Turkey":"유럽 (Europe)","Bosnia-Herzegovina":"유럽 (Europe)",
+  "Brazil":"남미 (S. America)","Argentina":"남미 (S. America)","Uruguay":"남미 (S. America)",
+  "Ecuador":"남미 (S. America)","Colombia":"남미 (S. America)","Paraguay":"남미 (S. America)",
+  "Mexico":"북중미 (CONCACAF)","United States":"북중미 (CONCACAF)","Canada":"북중미 (CONCACAF)",
+  "Panama":"북중미 (CONCACAF)","Haiti":"북중미 (CONCACAF)","Curaçao":"북중미 (CONCACAF)",
+  "Japan":"아시아 (Asia)","South Korea":"아시아 (Asia)","Iran":"아시아 (Asia)","Saudi Arabia":"아시아 (Asia)",
+  "Qatar":"아시아 (Asia)","Australia":"아시아 (Asia)","Uzbekistan":"아시아 (Asia)","Jordan":"아시아 (Asia)","Iraq":"아시아 (Asia)",
+  "Morocco":"아프리카 (Africa)","Senegal":"아프리카 (Africa)","Tunisia":"아프리카 (Africa)","Egypt":"아프리카 (Africa)",
+  "Algeria":"아프리카 (Africa)","Ivory Coast":"아프리카 (Africa)","Ghana":"아프리카 (Africa)","South Africa":"아프리카 (Africa)",
+  "Cape Verde Islands":"아프리카 (Africa)","Congo DR":"아프리카 (Africa)","New Zealand":"오세아니아 (Oceania)"
+};
+
+// timezone-aware formatting. "kst" = Asia/Seoul; "local" = each match's venue tz
+// (from venues.json), falling back to the host-region tz (TZ.local, from /api/status).
+const TZ = { kst: "Asia/Seoul", local: "America/New_York" };
+// tz used for a given match under the current toggle
+const matchTz = m => state.tz === "kst" ? "Asia/Seoul" : ((m && m.venueTz) || TZ.local);
+const _fmtDate = (iso, tz) => new Intl.DateTimeFormat("en-CA",
+  {timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit"}).format(new Date(iso)); // YYYY-MM-DD
+const _fmtTime = (iso, tz) => new Intl.DateTimeFormat("ko-KR",
+  {timeZone: tz, hour:"2-digit", minute:"2-digit", hour12:false}).format(new Date(iso));
+const tzDateM = m => _fmtDate(m.utcDate, matchTz(m));      // a match's date in its tz
+const tzTimeM = m => _fmtTime(m.utcDate, matchTz(m));      // a match's kickoff in its tz
+const todayStr = () => _fmtDate(new Date().toISOString(), state.tz === "kst" ? "Asia/Seoul" : TZ.local);
+function computeDates(){
+  const set = new Set();
+  state.matches.forEach(m => { if (m.utcDate) set.add(tzDateM(m)); });
+  state.dates = [...set].sort();
+}
+const flagFb = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='26'%3E%3Crect width='38' height='26' rx='4' fill='%23222'/%3E%3C/svg%3E";
+
+function setSrc(source) { state.source = source; updateBadge(); }
+function updateBadge() {
+  const b = document.getElementById("srcBadge"), t = document.getElementById("srcText");
+  if (!b) return;
+  const hasLive = (state.matches||[]).some(m => LIVE_STATUS.includes(m.status));
+  b.style.display = "flex";            // always show the LIVE badge
+  b.className = "src-badge" + (hasLive ? " live" : "");   // green only when a match is live
+  t.textContent = "LIVE";
+}
+
+async function loadAll() {
+  const st = await fetch("/api/status").then(r=>r.json()).catch(()=>null);
+  if (st) {
+    document.getElementById("seasonYr").textContent = st.season || "2026";
+    if (st.venue_timezone) {
+      TZ.local = st.venue_timezone;
+      const b = document.getElementById("tzToggle");
+      if (b) b.title = "체크: 경기장 현지시간 / 해제: 한국시간 (개최지 기준 " + st.venue_timezone + ")";
+    }
+  }
+  const m = await fetch("/api/matches").then(r=>r.json());
+  state.matches = m.matches;
+  setSrc(m.source);
+  computeDates();
+  const t = todayStr();
+  state.selectedDate = state.dates.includes(t) ? t : (state.dates[0] || null);
+  renderDateStrip();
+  render();
+  // today's match details are fetched eagerly on launch; other days load on click
+  if (state.selectedDate) prefetchDay(state.selectedDate);
+  loadEditions();      // populate the World Cup edition selector
+  startSubMonitor();   // resume any saved team/match notifications
+  // warm group standings so the first 조별 toggle is instant
+  fetch("/api/standings").then(r=>r.json()).then(s=>{ if (s && s.groups) state.groups = s.groups; }).catch(()=>{});
+}
+
+/* ---------- date strip ---------- */
+function renderDateStrip() {
+  const wrap = document.getElementById("dateScroll");
+  const counts = {};
+  state.matches.forEach(x => { if(!x.utcDate) return; const d=tzDateM(x); counts[d]=(counts[d]||0)+1; });
+  wrap.innerHTML = state.dates.map(d => {
+    const dt = new Date(d + "T00:00:00");
+    const dow = dt.toLocaleDateString("ko-KR", {weekday:"short"});
+    const mon = dt.toLocaleDateString("ko-KR", {month:"short"});
+    const cls = ["chip", d===state.selectedDate?"active":"", d===todayStr()?"today":""].join(" ");
+    return `<div class="${cls}" data-d="${d}" onclick="selectDate('${d}')">
+      <span class="dow">${dow}</span><span class="day">${dt.getDate()}</span>
+      <span class="mon">${mon}</span><span class="cnt">${counts[d]||0} 경기</span></div>`;
+  }).join("") || `<div class="empty" style="padding:20px">경기 일정이 없습니다</div>`;
+  const active = wrap.querySelector(".chip.active");
+  if (active) active.scrollIntoView({inline:"center", block:"nearest"});
+}
+function selectDate(d){ state.selectedDate = d; renderDateStrip(); render(); }
+function scrollDates(dir){ document.getElementById("dateScroll").scrollBy({left: dir*260, behavior:"smooth"}); }
+function goToday(){
+  const t = todayStr();
+  state.selectedDate = state.dates.includes(t) ? t : (state.dates[0] || null);
+  if (state.view !== "time") setView("time");
+  renderDateStrip(); render();
+}
+// warm the server cache for one day's match details (today at startup; other days on click)
+function prefetchDay(day){
+  state.matches.filter(m => m.utcDate && tzDateM(m)===day)
+    .forEach(m => fetch("/api/match?id="+m.id).catch(()=>{}));
+}
+
+/* ---------- World Cup edition selector (past editions = overview + videos) ---------- */
+let EDITIONS = [];
+// mascot Wikipedia article titles (1966+); used to fetch the mascot image
+const MASCOT = {2022:"La'eeb", 2018:"Zabivaka", 2014:"Fuleco", 2010:"Zakumi", 2006:"Goleo VI",
+  2002:"Ato, Kaz and Nik", 1998:"Footix", 1994:"Striker (dog)", 1990:"Ciao (mascot)",
+  1986:"Pique (mascot)", 1982:"Naranjito", 1978:"Gauchito", 1974:"Tip and Tap",
+  1970:"Juanito (mascot)", 1966:"World Cup Willie"};
+async function loadEditions(){
+  try { EDITIONS = (await fetch("/assets/wc_editions.json").then(r=>r.json())).editions || []; }
+  catch(e){ EDITIONS = []; }
+  const sel = document.getElementById("editionSel");
+  if (sel) sel.innerHTML = EDITIONS.map(e=>`<option value="${e.year}">${e.year}  ${e.hostEn||e.host}</option>`).join("");
+}
+async function changeEdition(year){
+  year = +year;
+  const ed = EDITIONS.find(e=>e.year===year) || {year};
+  state.edition = year; state.editionCurrent = !!ed.current; state.editionData = ed;
+  document.getElementById("seasonYr").textContent = year;
+  document.getElementById("edHost").textContent = ed.hostEn || ed.host || "";
+  const tb = document.getElementById("todayBtn"); if (tb) tb.style.display = ed.current ? "" : "none";
+  // edition emblem (logo): 2026 official asset, past = Wikipedia
+  const em = document.getElementById("edEmblem");
+  if (em){
+    if (ed.current) em.src = "/assets/logo.png";
+    else fetch("/api/wiki-image?title="+encodeURIComponent(year+" FIFA World Cup")).then(r=>r.json())
+           .then(d=>{ em.src = d.image || "/assets/logo.png"; }).catch(()=>{ em.src="/assets/logo.png"; });
+  }
+  state.groups = [];   // standings are per-edition
+  document.getElementById("tzToggle").style.display = ed.current ? "flex" : "none";  // venue tz only for 2026
+  state.view = "time";
+  document.getElementById("tabTime").classList.add("active");
+  document.getElementById("tabGroup").classList.remove("active");
+  document.getElementById("tabBracket").classList.remove("active");
+  document.getElementById("datebar").style.display = "flex";
+  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">⚽</div>${year} 불러오는 중…</div>`;
+  const url = ed.current ? "/api/matches" : "/api/matches?year="+year;
+  const m = await fetch(url).then(r=>r.json()).catch(()=>null);
+  if (!m){ document.getElementById("main").innerHTML = `<div class="empty">불러오기 실패</div>`; return; }
+  state.matches = m.matches; setSrc(m.source); computeDates();
+  const t = todayStr();
+  state.selectedDate = (ed.current && state.dates.includes(t)) ? t : (state.dates[0] || null);
+  renderDateStrip(); render();
+  if (!ed.current) ensureEditionSaved(year);   // persist the whole past edition (videos stay on-demand)
+}
+async function ensureEditionSaved(year){
+  try {
+    const r = await fetch("/api/save-edition?year="+year, {method:"POST"}).then(r=>r.json());
+    const el = document.getElementById("edSaveStatus");
+    if (el) el.textContent = r.saved ? " · 💾 저장됨" : " · 💾 저장 중…";
+  } catch(e){}
+}
+function editionBanner(){
+  const ed = state.editionData || {}; const q = s => encodeURIComponent(s);
+  const flag = iso => iso ? `<img class="ed-flag" src="https://flagcdn.com/w40/${iso}.png" onerror="this.style.display='none'"/>` : "";
+  const honors = [];
+  if (ed.champEn) honors.push(`<span class="ed-honor">🏆 우승 ${flag(ed.champIso)}<b>${ed.champEn}</b></span>`);
+  if (ed.ruEn) honors.push(`<span class="ed-honor">🥈 준우승 ${flag(ed.ruIso)}${ed.ruEn}</span>`);
+  if (ed.mvp) honors.push(`<span class="ed-honor">⭐ MVP ${flag(ed.mvpIso)}${ed.mvp} <span class="ed-mvp-c">(${ed.mvpCountry})</span></span>`);
+  if (ed.topScorer) honors.push(`<span class="ed-honor">👟 Golden Boot ${flag(ed.topScorer.iso)}${ed.topScorer.name} <span class="ed-mvp-c">(${ed.topScorer.goals}골)</span></span>`);
+  return `<div class="ed-banner">
+    <div class="ed-b-info">
+      <div class="ed-b-title">${ed.year} ${ed.hostEn||ed.host||""}${ed.score?` <span class="ed-b-score">· 결승 ${ed.score}</span>`:""}<span class="ed-save" id="edSaveStatus"></span></div>
+      <div class="ed-b-honors">${honors.join("")}</div>
+    </div>
+    <div class="ed-b-vids">
+      <button class="ed-vbtn" onclick="playHighlight('${q(ed.year+' FIFA World Cup '+(ed.hostEn||'')+' opening ceremony')}')">🎬 개막식</button>
+      ${ed.champEn?`<button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final full match')}')">🏟 결승 풀경기</button>
+      <button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final highlights')}')">▶ 결승 H/L</button>`:""}
+    </div></div>`;
+}
+
+/* ---------- view switch ---------- */
+function setView(v){
+  state.view = v;
+  document.getElementById("tabTime").classList.toggle("active", v==="time");
+  document.getElementById("tabGroup").classList.toggle("active", v==="group");
+  document.getElementById("tabBracket").classList.toggle("active", v==="bracket");
+  document.getElementById("datebar").style.display = v==="time" ? "flex" : "none";
+  if (v==="group" && !state.groups.length) loadStandings(); else render();
+}
+
+function toggleTz(){ setTz(state.tz==="kst" ? "local" : "kst"); }
+function setTz(tz){
+  if (state.tz === tz) return;
+  state.tz = tz;
+  const btn = document.getElementById("tzToggle");
+  if (btn) btn.classList.toggle("on", tz==="local");
+  const prev = state.selectedDate;
+  computeDates();                                  // dates re-bucket under the new tz
+  if (!state.dates.includes(prev)) {
+    const t = todayStr();
+    state.selectedDate = state.dates.includes(t) ? t : (state.dates[0] || null);
+  }
+  renderDateStrip();
+  if (state.view === "time") renderTime();          // group view shows no times
+}
+
+async function loadStandings(){
+  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">▦</div>조별 순위 불러오는 중…</div>`;
+  const url = state.editionCurrent!==false ? "/api/standings" : "/api/standings?year="+state.edition;
+  const s = await fetch(url).then(r=>r.json());
+  state.groups = s.groups; if (s.source) setSrc(s.source); render();
+}
+
+/* ---------- live auto-refresh (30s while a live match is on the viewed day) ---------- */
+const LIVE_STATUS = ["IN_PLAY","PAUSED","LIVE"];
+let livePoll = null;
+// score/status markup for a match's center cell (reused for in-place live updates)
+function centerInner(m){
+  const finished = m.status==="FINISHED";
+  const live = LIVE_STATUS.includes(m.status);
+  const hs = m.score.home, as = m.score.away;
+  return (finished||live)
+    ? `<span class="sc">${hs??0} <span style="color:var(--mute)">:</span> ${as??0}</span>
+       <span class="pill ${live?"live":"ft"}">${live?"LIVE":"FT"}</span>`
+    : `<span class="vs">VS</span><span class="pill ft" style="background:transparent;color:var(--mute)">예정</span>`;
+}
+function dayHasLive(){
+  const day = state.selectedDate;
+  return state.matches.some(m => m.utcDate && tzDateM(m)===day && LIVE_STATUS.includes(m.status));
+}
+function scheduleLivePoll(){
+  if (livePoll){ clearInterval(livePoll); livePoll = null; }
+  if (state.view==="time" && dayHasLive()) livePoll = setInterval(refreshLive, 30000);
+}
+async function refreshLive(){
+  if (state.view!=="time"){ scheduleLivePoll(); return; }
+  let data;
+  try { data = await fetch("/api/matches",{cache:"no-store"}).then(r=>r.json()); }
+  catch(e){ return; }                          // keep the interval; try again next tick
+  state.matches = data.matches; setSrc(data.source); updateBadge();
+  const day = state.selectedDate;
+  const todays = state.matches.filter(m => m.utcDate && tzDateM(m)===day);
+  // 1) update each card's score/status + live highlight in place (no re-render)
+  todays.forEach(m => {
+    const card = document.getElementById("m-"+m.id);
+    const cin = document.getElementById("cin-"+m.id);
+    if (!card || !cin) return;
+    card.classList.toggle("islive", LIVE_STATUS.includes(m.status));
+    cin.innerHTML = centerInner(m);
+  });
+  // 2) refresh the content of any OPEN live accordion in place (no collapse/flicker)
+  await Promise.all(todays.filter(m => LIVE_STATUS.includes(m.status)).map(async m => {
+    const acc = document.getElementById("acc-"+m.id);
+    if (!acc || !acc.classList.contains("open")) return;
+    const r = await fetch("/api/match?id="+m.id).then(r=>r.json()).catch(()=>null);
+    if (r && r.match) acc.innerHTML = renderMatchDetail(r.match);
+  }));
+  scheduleLivePoll();                          // re-arm; stops once no live match remains
+}
+
+/* ---------- render ---------- */
+function render(){
+  if (state.view==="group") renderGroups();
+  else if (state.view==="bracket") renderBracket();
+  else renderTime();
+  scheduleLivePoll();
+  updateBadge();
+}
+
+/* ---------- knockout bracket (final in the center) ---------- */
+function brCard(m){
+  const decided = m.status==="FINISHED" || LIVE_STATUS.includes(m.status);
+  const live = LIVE_STATUS.includes(m.status);
+  const row = (tm, sc) => `<div class="br-team"><img src="${tm.crest||flagFb}" onerror="this.src='${flagFb}'"/>
+      <span class="br-nm">${tm.name||"미정"}</span><span class="br-sc">${decided?(sc??0):""}</span></div>`;
+  const date = m.utcDate ? new Date(tzDateM(m)+"T00:00:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}) : "";
+  const tag = live ? " · LIVE" : m.status==="FINISHED" ? " · 종료" : "";
+  return `<div class="br-match ${live?"islive":""}" onclick="gotoMatch(${m.id})">
+    ${row(m.home, m.score.home)}${row(m.away, m.score.away)}
+    <div class="br-meta">${date}${tag}</div></div>`;
+}
+function renderBracket(){
+  const main = document.getElementById("main");
+  const byStage = s => state.matches.filter(m=>m.stage===s).sort((a,b)=>(a.id||0)-(b.id||0));
+  const r32=byStage("LAST_32"), r16=byStage("LAST_16"), qf=byStage("QUARTER_FINALS"), sf=byStage("SEMI_FINALS");
+  const fin=byStage("FINAL")[0], third=byStage("THIRD_PLACE")[0];
+  if (!r32.length && !r16.length && !fin){ main.innerHTML = `<div class="empty"><div class="big">🏆</div>토너먼트 대진은 조별리그 종료 후 확정됩니다</div>`; return; }
+  const half = a => { const n=Math.ceil(a.length/2); return [a.slice(0,n), a.slice(n)]; };
+  const [r32L,r32R]=half(r32), [r16L,r16R]=half(r16), [qfL,qfR]=half(qf), [sfL,sfR]=half(sf);
+  const col = (title,ms) => ms.length ? `<div class="br-col"><div class="br-rnd">${title}</div>${ms.map(brCard).join("")}</div>` : "";
+  main.innerHTML = `<div class="bracket">
+    ${col("32강",r32L)}${col("16강",r16L)}${col("8강",qfL)}${col("4강",sfL)}
+    <div class="br-col br-center">
+      <div class="br-rnd">🏆 결승</div>${fin?brCard(fin):`<div class="br-tbd">미정</div>`}
+      ${third?`<div class="br-rnd third">3·4위전</div>${brCard(third)}`:""}
+    </div>
+    ${col("4강",sfR)}${col("8강",qfR)}${col("16강",r16R)}${col("32강",r32R)}
+  </div>`;
+}
+
+function teamEl(team, side){
+  const flag = team.crest || flagFb;
+  const rk = team.rank ? `<span class="rk">${team.rank}</span>` : "";
+  // current edition → football-data id; past editions → look up by name
+  const click = (state.editionCurrent!==false && team.id!=null)
+    ? `onclick="event.stopPropagation(); openTeam(${team.id})"`
+    : (team.name ? `onclick="event.stopPropagation(); openTeamName('${encodeURIComponent(team.name)}')"` : "");
+  return `<div class="team ${side}" ${click}>
+    <img class="flag" src="${flag}" onerror="this.src='${flagFb}'"/>
+    <span class="nm">${team.name||"미정"}</span>${rk}</div>`;
+}
+
+function renderTime(){
+  const main = document.getElementById("main");
+  const cur = state.editionCurrent !== false;          // false = past edition (ESPN data)
+  const day = state.selectedDate;
+  const list = state.matches.filter(m => m.utcDate && tzDateM(m)===day)
+                            .sort((a,b)=> (a.utcDate||"").localeCompare(b.utcDate||""));
+  const banner = cur ? "" : editionBanner();
+  if (!list.length){ main.innerHTML = banner + `<div class="empty"><div class="big">📅</div>이 날짜에 경기가 없습니다</div>`; return; }
+  const dt = day ? new Date(day+"T00:00:00") : null;
+  const head = dt ? `<div class="day-head"><h2>${dt.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"})}</h2>
+      <span class="sub">${list.length} matches</span></div>` : "";
+  main.innerHTML = banner + head + `<div class="matches">` + list.map(m=>{
+    const live = LIVE_STATUS.includes(m.status);
+    const stageKo = {LAST_32:"32강",LAST_16:"16강",QUARTER_FINALS:"8강",SEMI_FINALS:"4강",THIRD_PLACE:"3·4위전",FINAL:"결승"};
+    const grp = m.group ? m.group.replace(/_/g," ").replace(/group/i,"조").replace("GROUP","조") : (stageKo[m.stage]||(m.stage||"").replace(/_/g," "));
+    return `<div class="match-wrap">
+      <div class="match ${live?"islive":""}" id="m-${m.id}" onclick="toggleMatch(${m.id})">
+        <div class="kick"><div class="time">${tzTimeM(m)}</div><div class="grp">${[grp, m.venueCity].filter(Boolean).join(" · ")}</div></div>
+        ${teamEl(m.home,"home")}
+        <div class="center"><span class="cinner" id="cin-${m.id}">${centerInner(m)}</span></div>
+        ${teamEl(m.away,"away")}
+      </div>
+      <div class="acc" id="acc-${m.id}"></div>
+    </div>`;
+  }).join("") + `</div>`;
+  list.filter(m => ["IN_PLAY","PAUSED","LIVE"].includes(m.status)).forEach(m => openAcc(m.id));
+}
+
+/* ---- match detail accordion (ESPN events + venue image + weather) ---- */
+const isGoalEv = t => { t=(t||"").toLowerCase();
+  if (t.includes("missed") || t.includes("saved")) return false;
+  return t.includes("goal") || t.includes("penalty"); };
+const evIcon = t => { const s=(t||"").toLowerCase();
+  if (s.includes("missed") || s.includes("saved")) return "❌";
+  if (isGoalEv(s)) return "⚽";
+  if (s.includes("yellow")) return "🟨";
+  if (s.includes("red")) return "🟥";
+  return "•"; };
+
+function renderMatchDetail(d){
+  const v = d.venue || {};
+  const w = d.weather || {};
+  const chips = [];
+  if (v.capacity) chips.push(["수용인원", Number(v.capacity).toLocaleString()+"석"]);
+  if (v.surface) chips.push(["표면", v.surface]);
+  if (d.attendance) chips.push(["관중", Number(d.attendance).toLocaleString()]);
+  if (w.temp!=null) chips.push(["온도", Math.round(w.temp)+"°C"]);
+  if (w.humidity!=null) chips.push(["습도", w.humidity+"%"]);
+  const banner = v.image
+    ? `<div class="venue-banner" style="background-image:url('${v.image}')"><div class="vb-grad"></div>
+        <div class="vb-txt"><b>${v.name||""}</b><span>${[v.city,v.country].filter(Boolean).join(", ")}</span></div></div>`
+    : (v.name ? `<div class="acc-sect">🏟 ${v.name}${v.city?` · ${v.city}`:""}</div>` : "");
+  // 1X2 betting odds (decimal), shown to the right of the info chips
+  const o = d.odds;
+  const oddsHtml = o ? `<div class="odds">
+      <span class="odds-lbl">${o.provider||"배당"}<br>배당</span>
+      <div class="odd"><span class="k">${d.home.tla||"홈"}</span><span class="v">${o.home??"-"}</span></div>
+      <div class="odd"><span class="k">무</span><span class="v">${o.draw??"-"}</span></div>
+      <div class="odd"><span class="k">${d.away.tla||"원정"}</span><span class="v">${o.away??"-"}</span></div>
+    </div>` : "";
+  // events flow left→right by kickoff minute
+  const flagOf = side => (side==="home" ? d.home.crest : side==="away" ? d.away.crest : "") || flagFb;
+  const parseMin = s => { const m=String(s||"").match(/(\d+)(?:\s*\+\s*(\d+))?/);
+    const b=m?+m[1]:0, e=m&&m[2]?+m[2]:0; return {base:b, val:b+e/100}; };
+  const segOf = b => b<=45 ? 0 : b<=90 ? 1 : 2;     // 전반 / 후반 / 연장
+  const segs = [[],[],[]];
+  (d.events||[]).forEach(e => { const p=parseMin(e.minute); e._val=p.val; segs[segOf(p.base)].push(e); });
+  segs.forEach(s => s.sort((a,b)=> a._val-b._val));
+  const SEGN = ["전반","후반","연장"];
+  // FIFA-official-style search titles → top YouTube result is the FIFA clip, played in-app
+  const yr = state.edition || 2026;
+  const matchQ = encodeURIComponent(`${d.home.name} vs ${d.away.name} ${yr} FIFA World Cup highlights`);
+  const fullQ = encodeURIComponent(`${d.home.name} vs ${d.away.name} full match ${yr} FIFA World Cup`);
+  const started = LIVE_STATUS.includes(d.status) || d.status==="FINISHED";  // HL/FM available after kickoff
+  const finished = d.status==="FINISHED";                                    // match alert off once over
+  const evChip = e => {
+    const goal = isGoalEv(e.type);
+    const og = /own goal/i.test(e.type);
+    const gq = encodeURIComponent(`${e.player||""} goal ${d.home.name} vs ${d.away.name} ${yr} FIFA World Cup`);
+    const attrs = goal ? ` title="골 하이라이트 재생" onclick="playHighlight('${gq}')"` : "";
+    return `<div class="tle ${goal?"goal clk":""}"${attrs}>
+      <div class="tle-top"><img class="tle-flag" src="${flagOf(e.side)}" onerror="this.src='${flagFb}'"/><span class="tle-ic">${evIcon(e.type)}</span>${og?'<span class="og-tag">OG</span>':goal?'<span class="tle-play">▶</span>':''}</div>
+      <div class="tle-min">${e.minute}</div>
+      <div class="tle-pl">${e.player||e.type}</div></div>`;
+  };
+  // 전반·후반은 항상, 연장은 이벤트 있을 때만 표시 (빈 구간도 여백 유지)
+  const showSegs = [0, 1].concat(segs[2].length ? [2] : []);
+  const evHeader = `<div class="acc-sect ev-head">
+      <span>이벤트 <span class="sect-hint">← 경기 시간 →</span></span>
+      <div class="hl-actions">
+        ${!finished ? `<button class="bell ${isSubMatch(d.id)?"on":""}" title="${isSubMatch(d.id)?"알림 끄기":"경기 알림 받기"}" onclick="toggleSub('match', ${d.id}, this)">🔔</button>` : ""}
+        ${started ? `<button class="hl-btn2" onclick="playHighlight('${matchQ}')">▶ Highlights</button>` : ""}
+        ${started ? `<button class="hl-btn2" onclick="playHighlight('${fullQ}')">▶ Full Match</button>` : ""}
+      </div></div>`;
+  const evBody = (d.events||[]).length
+    ? `<div class="tl-h-scroll">` + showSegs.map(si => `
+         <div class="tl-seg">
+           <div class="tl-seg-label">${SEGN[si]}</div>
+           <div class="tl-seg-events">${segs[si].length ? segs[si].map(evChip).join("") : `<div class="tl-seg-empty">기록 없음</div>`}</div>
+         </div>`).join("") + `</div>`
+    : (d.espnMatched ? `<div class="acc-empty">아직 기록된 이벤트가 없습니다</div>`
+                     : `<div class="acc-empty">이 경기의 상세 정보를 찾지 못했습니다</div>`);
+  const evs = evHeader + evBody;
+  return `<div class="acc-inner">
+    ${banner}
+    ${(chips.length||oddsHtml)?`<div class="acc-meta">
+        <div class="acc-chips">${chips.map(([l,x])=>`<div class="achip"><span class="l">${l}</span><span class="v">${x}</span></div>`).join("")}</div>
+        ${oddsHtml}
+      </div>`:""}
+    ${evs}
+  </div>`;
+}
+
+// highlight: resolve the exact FIFA goal/match video, then open its YouTube watch page
+// in an in-app popup window (FIFA clips block iframe embeds, but the watch page plays fine)
+async function playHighlight(encQuery){
+  const q = decodeURIComponent(encQuery);
+  const r = await fetch("/api/highlight?q=" + encodeURIComponent(q)).then(r=>r.json()).catch(()=>null);
+  const vid = r && r.videoId;
+  const url = vid ? `https://www.youtube.com/watch?v=${vid}`
+                  : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.open_highlight) api.open_highlight(url, "하이라이트");
+  else window.open(url, "_blank");
+}
+
+async function openAcc(id){
+  const acc = document.getElementById("acc-"+id), chev = document.getElementById("chev-"+id);
+  if (!acc || acc.classList.contains("open")) return;   // already open / missing
+  acc.innerHTML = `<div class="acc-load"><span>⚽ 경기 정보 불러오는 중…</span></div>`;
+  acc.classList.add("open");
+  if (chev) chev.classList.add("up");
+  const res = await fetch("/api/match?id="+id).then(r=>r.json()).catch(()=>null);
+  const d = res && res.match;
+  acc.innerHTML = d ? renderMatchDetail(d) : `<div class="acc-empty">정보를 불러올 수 없습니다</div>`;
+}
+function closeAcc(id){
+  const acc = document.getElementById("acc-"+id), chev = document.getElementById("chev-"+id);
+  if (acc){ acc.classList.remove("open"); acc.innerHTML=""; }
+  if (chev) chev.classList.remove("up");
+}
+function toggleMatch(id){
+  const acc = document.getElementById("acc-"+id);
+  if (acc && acc.classList.contains("open")) closeAcc(id); else openAcc(id);
+}
+
+function renderGroups(){
+  const main = document.getElementById("main");
+  if (!state.groups.length){ main.innerHTML = `<div class="empty"><div class="big">▦</div>조별 순위 데이터가 없습니다</div>`; return; }
+  main.innerHTML = `<div class="groups">` + state.groups.map(g=>{
+    const letter = (g.group||"").replace(/group/i,"").trim().slice(-1).toUpperCase() || "·";
+    const rows = (g.table||[]).map((r,i)=>`<tr class="${i<2?"qual":""}">
+      <td class="pos">${r.position??i+1}</td>
+      <td class="team-col"><div class="gteam" onclick="openTeam(${r.team.id})">
+        <img src="${r.team.crest||flagFb}" onerror="this.src='${flagFb}'"/>
+        <span class="gnm">${r.team.name}</span>${r.team.rank?`<span class="rk">${r.team.rank}</span>`:""}</div></td>
+      <td>${r.playedGames??0}</td><td>${r.won??0}</td><td>${r.draw??0}</td><td>${r.lost??0}</td>
+      <td>${(r.goalDifference>0?"+":"")+(r.goalDifference??0)}</td>
+      <td class="pts">${r.points??0}</td></tr>`).join("");
+    return `<div class="gcard"><div class="gh"><span class="badge">${letter}</span><h3>${(g.group||"GROUP").toUpperCase()}</h3></div>
+      <table class="stand"><thead><tr>
+        <th>#</th><th class="team-col">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join("") + `</div>`;
+}
+
+/* ---------- notifications / subscriptions (teams & matches) ---------- */
+const _lsGet = k => { try { return JSON.parse(localStorage.getItem(k)||"[]"); } catch(e){ return []; } };
+const _lsSet = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+const subTeams = () => _lsGet("wc_sub_teams");
+const subMatches = () => _lsGet("wc_sub_matches");
+const isSubTeam = id => subTeams().includes(String(id));
+const isSubMatch = id => subMatches().includes(String(id));
+function toggleSub(kind, id, btn){
+  const key = kind==="team" ? "wc_sub_teams" : "wc_sub_matches";
+  let s = _lsGet(key); id = String(id);
+  const on = s.includes(id);
+  s = on ? s.filter(x=>x!==id) : (s.push(id), s);
+  _lsSet(key, s);
+  if (btn){ const now = s.includes(id); btn.classList.toggle("on", now); btn.title = now?"알림 끄기":"알림 받기"; }
+  startSubMonitor();
+  return s.includes(id);
+}
+function notify(title, body){
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.notify) api.notify(title, body);
+  else if (window.Notification && Notification.permission==="granted") new Notification(title,{body});
+}
+let subTimer = null, subSnap = {};
+function startSubMonitor(){
+  if (subTimer){ clearInterval(subTimer); subTimer = null; }
+  if (subTeams().length || subMatches().length) subTimer = setInterval(checkSubs, 60000);
+}
+async function checkSubs(){
+  const sm = subMatches(), st = subTeams();
+  if (!sm.length && !st.length) return;
+  const data = await fetch("/api/matches",{cache:"no-store"}).then(r=>r.json()).catch(()=>null);
+  if (!data) return;
+  data.matches.filter(m => sm.includes(String(m.id)) || st.includes(String(m.home.id)) || st.includes(String(m.away.id)))
+    .forEach(m => {
+      const cur = { st: m.status, h: m.score.home, a: m.score.away };
+      const prev = subSnap[m.id];
+      const label = `${m.home.name} ${cur.h??0} : ${cur.a??0} ${m.away.name}`;
+      if (prev){
+        if (!LIVE_STATUS.includes(prev.st) && LIVE_STATUS.includes(cur.st)) notify("⚽ 경기 시작", `${m.home.name} vs ${m.away.name}`);
+        else if (LIVE_STATUS.includes(cur.st) && (cur.h!==prev.h || cur.a!==prev.a)) notify("⚽ 골!", label);
+        else if (prev.st!=="FINISHED" && cur.st==="FINISHED") notify("경기 종료", label);
+      }
+      subSnap[m.id] = cur;
+    });
+}
+
+/* ---------- navigate to a match (from a team's schedule) ---------- */
+function gotoMatch(id){
+  const m = state.matches.find(x => String(x.id)===String(id));
+  if (!m) return;
+  closePlayer(); closeTeam();
+  state.selectedDate = tzDateM(m);
+  if (state.view!=="time"){
+    state.view = "time";
+    document.getElementById("tabTime").classList.add("active");
+    document.getElementById("tabGroup").classList.remove("active");
+    document.getElementById("datebar").style.display = "flex";
+  }
+  renderDateStrip(); renderTime();
+  openAcc(id);
+  const el = document.getElementById("m-"+id);
+  if (el) el.scrollIntoView({block:"center", behavior:"smooth"});
+}
+
+/* ---------- team popup ---------- */
+async function openTeam(id){ if (id) openTeamUrl("/api/team?id="+id); }
+async function openTeamName(encName){ if (encName) openTeamUrl("/api/team?name="+encName+"&year="+state.edition); }
+async function openTeamUrl(url){
+  const ov = document.getElementById("overlay"), modal = document.getElementById("modal");
+  modal.innerHTML = `<div class="loading">⚽ 팀 정보 불러오는 중…</div>`;
+  ov.classList.add("open");
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 15000);
+  let res = null;
+  try { res = await fetch(url, {signal: ctrl.signal}).then(r=>r.json()); } catch(e){}
+  clearTimeout(to);
+  const t = res && res.team;
+  if (!t){ modal.innerHTML = `<div class="loading">팀 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.<br><br><button class="close" style="position:static" onclick="closeTeam()">닫기</button></div>`; return; }
+  const flag = t.crest || (t.area && t.area.flag) || flagFb;
+  const inf = t.info || {};
+  currentTeamName = t.name || "";
+  const nf = n => new Intl.NumberFormat("ko", {notation:"compact", maximumFractionDigits:1}).format(n);
+  const coachName = (t.coach && t.coach.name && t.coach.name!=="—") ? t.coach.name : "";
+  // country meta line (shown in header, beside the flag)
+  const cm = [];
+  if (CONTINENT[t.name]) cm.push(`대륙 <b>${CONTINENT[t.name]}</b>`);
+  if (inf.capital) cm.push(`수도 <b>${inf.capital}${inf.capitalEn?` (${inf.capitalEn})`:""}</b>`);
+  if (inf.population) cm.push(`인구 <b>${nf(inf.population)}명</b>`);
+  if (inf.area) cm.push(`면적 <b>${nf(inf.area)}㎢</b>`);
+  if (t.founded) cm.push(`협회창설 <b>${t.founded}</b>`);
+  const cmeta = cm.join("<span class='dot'>·</span>");
+  // World Cup history as a table (years for podium finishes)
+  const yrs = a => a && a.length ? `${a.length}회 <span class="wc-yr">(${a.join(", ")})</span>` : null;
+  const wcRows = [];
+  if (inf.wcApps!=null) wcRows.push(["본선 출전", inf.wcApps+"회"]);
+  if (inf.champions) wcRows.push(["🏆 우승", yrs(inf.champions)]);
+  if (inf.runnerUp) wcRows.push(["🥈 준우승", yrs(inf.runnerUp)]);
+  if (inf.third) wcRows.push(["🥉 3위", yrs(inf.third)]);
+  const podium = inf.champions || inf.runnerUp || inf.third;
+  if (inf.wcBest) wcRows.push([podium ? "그 외" : "최고 성적", inf.wcBest]);
+  const wcTable = wcRows.length
+    ? `<table class="wc-table">${wcRows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>` : "";
+  // schedule (this team's fixtures, from the loaded match list)
+  const fxDate = m => new Date(tzDateM(m)+"T00:00:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric",weekday:"short"});
+  const fixtures = state.matches.filter(m => m.home.name===t.name || m.away.name===t.name)
+                                .sort((a,b)=> (a.utcDate||"").localeCompare(b.utcDate||""));
+  const fxHtml = fixtures.map(m => {
+    const homeSide = m.home.name===t.name;
+    const opp = homeSide ? m.away : m.home;
+    const fin = m.status==="FINISHED", live = LIVE_STATUS.includes(m.status);
+    const res = (fin||live) ? `${m.score.home??0} : ${m.score.away??0}` : tzTimeM(m);
+    const tag = live ? `<span class="pill live">LIVE</span>` : fin ? `<span class="pill ft">FT</span>` : `<span class="fx-sch">예정</span>`;
+    return `<div class="fx" onclick="gotoMatch(${m.id})">
+      <span class="fx-date">${fxDate(m)}</span>
+      <span class="fx-side">${homeSide?"vs":"@"}</span>
+      <img class="fx-flag" src="${opp.crest||flagFb}" onerror="this.src='${flagFb}'"/>
+      <span class="fx-opp">${opp.name}</span>
+      <span class="fx-res">${res}</span>${tag}</div>`;
+  }).join("");
+  // squad: photo + name + age, click → player detail
+  (t.squad||[]).forEach(p => { if (p.id!=null) playerCache[p.id] = p; });
+  const grouped = {};
+  (t.squad||[]).forEach(p => { const k=p.position||"기타"; (grouped[k]=grouped[k]||[]).push(p); });
+  const order = [...POS_ORDER, ...Object.keys(grouped).filter(k=>!POS_ORDER.includes(k))];
+  const ageKey = p => p.id ?? p.name;
+  const aged = (t.squad||[]).map(p=>({k:ageKey(p), a:(p.age!=null?p.age:age(p.dateOfBirth))})).filter(x=>x.a!=null&&x.a!=="").sort((x,y)=>x.a-y.a);
+  const youngSet = new Set(aged.slice(0,3).map(x=>x.k)), oldSet = new Set(aged.slice(-3).map(x=>x.k));
+  const squadHtml = order.filter(k=>grouped[k]).map(k=>`<div class="squad-grp">
+      <div class="pos">${POS_KO[k]||k} · ${grouped[k].length}</div>
+      <ul>${grouped[k].slice().sort((a,b)=>(parseInt(a.number)||999)-(parseInt(b.number)||999)).map(p=>{
+        const a=(p.age!=null)?p.age:age(p.dateOfBirth);
+        const av=p.photo?`<img class="pphoto" src="${p.photo}" onerror="this.outerHTML='<span class=&quot;avatar&quot; style=&quot;background:${posColor(k)}&quot;>${initials(p.name)}</span>'"/>`:`<span class="avatar" style="background:${posColor(k)}">${initials(p.name)}</span>`;
+        const num=(p.number!=null)?`<span class="pnum">${p.number}</span>`:`<span class="pnum"></span>`;
+        const clk=p.id!=null?`class="player clk${p.available===false?" out":""}" onclick="openPlayer('${p.id}')"`:`class="player${p.available===false?" out":""}"`;
+        const key=ageKey(p);
+        const badge=p.available===false?`<span class="agebadge unavail">${p.statusText||"출전불가"}</span>`:youngSet.has(key)?`<span class="agebadge young">최연소</span>`:oldSet.has(key)?`<span class="agebadge old">최고령</span>`:"";
+        return `<li ${clk}>${av}${num}<span class="pn">${p.name}</span><span class="pmeta">${badge}${(a!=null&&a!=="")?a+"세":""}</span></li>`;
+      }).join("")}</ul></div>`).join("");
+  // coach as the first entry of the squad column
+  const coachHtml = coachName ? `<div class="squad-grp"><div class="pos">감독</div><ul>
+      <li class="player"><span class="avatar coach">${initials(coachName)}</span><span class="pnum"></span>
+      <span class="pn">${coachName}</span><span class="pmeta">감독</span></li></ul></div>` : "";
+  modal.innerHTML = `
+    <div class="mh teamhead" style="${flag?`--flagbg:url('${flag}')`:""}">
+      <button class="bell ${isSubTeam(t.id)?"on":""}" title="${isSubTeam(t.id)?"알림 끄기":"알림 받기"}" onclick="toggleSub('team', '${t.id}', this)">🔔</button>
+      <button class="close" onclick="closeTeam()">✕</button>
+      <img class="bigflag" src="${flag}" onerror="this.src='${flagFb}'"/>
+      ${inf.iso2?`<span class="cmap" style="-webkit-mask-image:url('https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${inf.iso2}/vector.svg');mask-image:url('https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${inf.iso2}/vector.svg')" title="${t.area&&t.area.name||""}"></span>`:""}
+      <div class="ti"><div class="nm">${t.name}${t.rank?` <span class="rk">FIFA ${t.rank}</span>`:""}</div>
+        <div class="meta">${t.area&&t.area.name?t.area.name:""}${t.tla?" · "+t.tla:""}</div>
+        ${cmeta?`<div class="cmeta">${cmeta}</div>`:""}</div>
+    </div>
+    <div class="mb">
+      <div class="mb-cols">
+        <div class="mb-col">
+          ${wcTable ? `<div class="sect-title">월드컵 역대 성적</div>${wcTable}` : ""}
+          ${fxHtml ? `<div class="sect-title">일정</div><div class="fixtures">${fxHtml}</div>` : ""}
+        </div>
+        <div class="mb-col">
+          ${(coachHtml||squadHtml) ? `<div class="sect-title">선수단</div>${coachHtml}${squadHtml}` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+function closeTeam(){ document.getElementById("overlay").classList.remove("open"); }
+
+/* ---- player detail (height/weight via API-Football, layers over team popup) ---- */
+function playerModalHtml(p){
+  const rows = [];
+  const clubVal = p.club ? `${p.club}${p.clubCountry?` <span class="muted">· ${p.clubCountry}</span>`:""}` : `<span class="muted">조회 중…</span>`;
+  rows.push(["소속팀", clubVal]);
+  if (p.position) rows.push(["포지션", POS_KO[p.position]||p.position]);
+  if (p.number!=null) rows.push(["등번호", p.number]);
+  if (p.age!=null) rows.push(["나이", p.age+"세"]);
+  if (p.dateOfBirth) rows.push(["생일", p.dateOfBirth]);
+  if (p.height) rows.push(["신장", p.height+" cm"]);
+  if (p.weight) rows.push(["체중", p.weight+" kg"]);
+  if (p.birthPlace) rows.push(["출생지", p.birthPlace]);
+  const statusBadge = p.available===false ? `<div class="pstatus">⚠ ${p.statusText||"출전 불가"}</div>` : "";
+  const av = p.photo
+    ? `<img src="${p.photo}" onerror="this.outerHTML='<div class=&quot;pavatar&quot;>${initials(p.name)}</div>'"/>`
+    : `<div class="pavatar">${initials(p.name)}</div>`;
+  return `
+    <button class="close" onclick="closePlayer()">✕</button>
+    <div class="pcard-head">
+      ${av}
+      <div><div class="pnm">${p.name}</div>
+        <div class="psub">${p.nationality||p.birthPlace||""}</div>${statusBadge}</div>
+    </div>
+    <div class="mb"><table class="ptable">
+      ${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join("")}
+    </table></div>`;
+}
+function openPlayer(id){
+  const p = playerCache[id];
+  const modal = document.getElementById("pmodal");
+  if (!p){ return; }
+  document.getElementById("poverlay").classList.add("open");
+  modal.innerHTML = playerModalHtml(p);
+  // club via TheSportsDB by name (free), once, cached
+  if (!p.club){
+    fetch(`/api/playerclub?name=${encodeURIComponent(p.name||"")}`)
+      .then(r=>r.json()).then(res=>{
+        p.club = (res && res.club) || "—"; p.clubCountry = res && res.clubCountry;
+        if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p);
+      }).catch(()=>{ p.club = "—"; if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p); });
+  }
+}
+function closePlayer(){ document.getElementById("poverlay").classList.remove("open"); }
+document.addEventListener("keydown", e => {
+  if (e.key!=="Escape") return;
+  const pov = document.getElementById("poverlay");
+  if (pov.classList.contains("open")) closePlayer(); else closeTeam();
+});
+
+document.getElementById("refreshBtn").onclick = async () => {
+  await fetch("/api/refresh", {method:"POST"}).catch(()=>{});
+  state.groups = []; await loadAll();
+  if (state.view==="group") loadStandings();
+};
+
+const params = new URLSearchParams(location.search);
+loadAll().then(() => {
+  if (params.get("tz") === "local") setTz("local");
+  if (params.get("view") === "group") setView("group");
+  if (params.get("team")) openTeam(params.get("team"));
+  if (params.get("player")) openPlayer(params.get("player"));
+  if (params.get("match")) toggleMatch(params.get("match"));
+});
+</script>
+</body>
+</html>
