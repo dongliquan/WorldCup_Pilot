@@ -31,6 +31,7 @@
   /* gold-filled controls: white text in light mode (dark text was unreadable) */
   body[data-theme="light"] .toggle button.active,
   body[data-theme="light"] .tz-check.on,
+  body[data-theme="light"] .icon-btn.on,
   body[data-theme="light"] .gcard .gh .badge,
   body[data-theme="light"] .ed-vbtn,
   body[data-theme="light"] .hl-btn2 { color: #fff; }
@@ -50,6 +51,7 @@
     background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
   }
   body[data-theme="light"] .modal,
+  body[data-theme="light"] .lineup-ov .lineup-panel,
   body[data-theme="light"] .acc-inner,
   body[data-theme="light"] .vload { background: #ffffff; }
   body[data-theme="light"] .acc-inner { border-color: var(--line); }
@@ -125,8 +127,8 @@
     display: flex; align-items: center; gap: 6px;
   }
   .src-badge .led { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); }
-  .src-badge.live { color: var(--live); border-color: rgba(40,198,107,.4); }
-  .src-badge.live .led { background: var(--live); box-shadow: 0 0 0 3px rgba(40,198,107,.18); }
+  .src-badge.live { color: #e5392f; border-color: rgba(229,57,53,.45); }
+  .src-badge.live .led { background: #e5392f; box-shadow: 0 0 0 3px rgba(229,57,53,.18); animation: blink 1.3s infinite; }
   .src-badge.mock { color: var(--gold); border-color: rgba(233,196,106,.4); }
   .src-badge.mock .led { background: var(--gold); }
 
@@ -136,6 +138,13 @@
     display: grid; place-items: center; transition: .15s;
   }
   .icon-btn:hover { color: var(--text); border-color: var(--gold); }
+  .icon-btn.on { color: #1a1205; border-color: var(--gold);
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); }
+  .head-div { width: 1px; align-self: stretch; margin: 5px 5px; background: var(--line-2); flex: 0 0 auto; }
+  .lang-sel { -webkit-appearance: none; appearance: none; background: var(--glass);
+    border: 1px solid var(--line-2); color: var(--dim); border-radius: 9px;
+    padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .lang-sel:hover { color: var(--text); border-color: var(--gold); }
 
   /* edition selector — unified with app controls (custom arrow, no native chrome) */
   .edition-sel { -webkit-appearance: none; appearance: none; margin-left: 18px;
@@ -215,7 +224,7 @@
   .datebar .nav:hover { color: var(--text); border-color: var(--gold); }
   .date-scroll {
     display: flex; gap: 8px; overflow-x: auto; scroll-behavior: smooth;
-    padding: 2px; scrollbar-width: none; flex: 1 1 auto;
+    padding: 13px 2px 4px; scrollbar-width: none; flex: 1 1 auto;   /* top room for the TODAY badge */
   }
   .date-scroll::-webkit-scrollbar { display: none; }
   .chip {
@@ -235,13 +244,13 @@
     border-color: var(--gold);
   }
   .chip.active .day { color: var(--gold-soft); }
-  .chip.today { border-color: rgba(233,196,106,.45); }
+  .chip.today { border-color: var(--gold); border-style: dashed; }
   .chip .todaybadge { display: none; }
   .chip.today .todaybadge {
-    display: block; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
-    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1a1205;
-    font-size: 8.5px; font-weight: 800; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.5);
+    display: block; position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
   }
   .today-btn {
     flex: 0 0 auto; height: 56px; padding: 0 16px; border-radius: 10px; cursor: pointer;
@@ -265,11 +274,55 @@
   }
   .day-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
   .day-head .sub { font-size: 12px; color: var(--mute); font-family: var(--mono); }
+  .day-head .expand-all { margin-left: auto; align-self: center; font: inherit; font-size: 11px;
+    font-weight: 700; cursor: pointer; background: var(--glass); border: 1px solid var(--line-2);
+    color: var(--dim); border-radius: 8px; padding: 5px 11px; transition: .15s; }
+  .day-head .expand-all:hover { color: var(--text); border-color: var(--gold); }
+  /* ===== prediction accuracy scoreboard ===== */
+  .acc-page { max-width: 1100px; margin: 0 auto; padding: 8px 4px 40px; }
+  .acc-page > .loading { display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 90px 20px; color: var(--mute); font-size: 14px; }
+  .acc-h { display: flex; align-items: center; gap: 12px; margin: 10px 2px 16px; flex-wrap: wrap; }
+  .acc-h h2 { margin: 0; font-size: 17px; font-weight: 800; }
+  .acc-h .sub { font-size: 12px; color: var(--mute); font-family: var(--mono); }
+  .acc-grade { margin-left: auto; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #fff; border: 0;
+    border-radius: 9px; padding: 7px 14px; }
+  .acc-grade:disabled { opacity: .6; cursor: default; }
+  .acc-lb { width: 100%; border-collapse: collapse; background: var(--glass); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; }
+  .acc-lb th, .acc-lb td { padding: 11px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .acc-lb thead th { font-size: 11px; color: var(--dim); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .acc-lb tbody tr:last-child td { border-bottom: 0; }
+  .acc-lb .acc-rank { width: 28px; font-size: 15px; text-align: center; }
+  .acc-lb .acc-pname { font-weight: 700; }
+  .acc-lb b { color: var(--gold); font-size: 14px; }
+  .acc-note { font-size: 11px; color: var(--mute); margin: 12px 2px 18px; line-height: 1.5; }
+  .acc-mtab-wrap { overflow-x: auto; }
+  .acc-mtab { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .acc-mtab th, .acc-mtab td { padding: 7px 9px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  .acc-mtab thead th { font-size: 11px; color: var(--dim); }
+  .acc-mtab .acc-mt { text-align: left; font-weight: 600; }
+  .acc-mtab .acc-sc { font-family: var(--mono); font-weight: 800; color: var(--gold); }
+  .acc-mtab td.ok { color: #34c759; font-weight: 700; font-family: var(--mono); }
+  .acc-mtab td.no { color: var(--mute); font-family: var(--mono); }
+  /* per-round accordion */
+  .accr { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: var(--glass); }
+  .accr-h { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+  .accr-h:hover { background: rgba(127,127,127,.06); }
+  .accr-t { font-weight: 800; font-size: 14px; flex: 0 0 auto; }
+  .accr-sum { display: flex; gap: 12px; font-size: 12px; color: var(--mute); font-family: var(--mono); flex-wrap: wrap; }
+  .accr-s { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+  .accr-s.lead { color: var(--gold); font-weight: 700; }
+  .accr-cv { margin-left: auto; color: var(--mute); transition: transform .2s; }
+  .accr.open .accr-cv { transform: rotate(180deg); }
+  .accr-b { display: none; padding: 0 12px 12px; }
+  .accr.open .accr-b { display: block; }
 
   /* ===== match card (time view) ===== */
   .matches { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center; }
   .match {
-    display: grid; grid-template-columns: 170px 1fr auto 1fr; align-items: center; gap: 14px;
+    display: grid; grid-template-columns: 270px 1fr auto 1fr; align-items: center; gap: 14px;
     background: var(--glass); border: 1px solid var(--line); border-radius: 14px;
     padding: 14px 18px; transition: .15s;
   }
@@ -295,16 +348,19 @@
   .rk { font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--gold-soft);
     background: rgba(233,196,106,.14); border-radius: 5px; padding: 1px 5px; flex: 0 0 auto; }
   .team .tla { display: none; }
-  .center { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 72px; }
+  .center { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 72px; position: relative; }
+  /* keep the score centered identically in every row; FT/예정 pill hangs to the right
+     (absolute → it never shifts the score) */
+  .center .cinner { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .center .cinner .pill { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
   .center .sc { font-family: var(--mono); font-weight: 800; font-size: 20px; letter-spacing: .04em; }
   .center .vs { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--mute); }
   .pill {
     font-size: 9.5px; font-weight: 800; letter-spacing: .08em; padding: 2px 8px; border-radius: 999px;
-    text-transform: uppercase;
+    text-transform: uppercase; white-space: nowrap;
   }
   .pill.ft   { background: rgba(255,255,255,.1); color: var(--dim); }
   .pill.live { background: rgba(40,198,107,.16); color: var(--live); }
-  .pill.live::before { content:'● '; }
 
   .match { cursor: pointer; }
   .center .chev { display: block; font-size: 11px; color: var(--mute); margin-top: 3px; transition: transform .2s; }
@@ -321,17 +377,85 @@
   }
   .acc-empty { padding: 26px; text-align: center; color: var(--mute); font-size: 13px; }
   /* loading aligns under the score column (skip the 170px kick column, center in the rest) */
-  .acc-load { display: flex; align-items: center; padding: 24px 16px; color: var(--mute); font-size: 13px; }
-  .acc-load::before { content: ""; flex: 0 0 184px; }
-  .acc-load > span { flex: 1 1 auto; text-align: center; }
+  /* same grid as .match → the loader sits in the score column, aligned under the score */
+  .acc-load { display: grid; grid-template-columns: 270px 1fr auto 1fr; gap: 14px; align-items: center; padding: 22px 18px; color: var(--mute); font-size: 13px; }
+  .acc-load > span { grid-column: 3; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .ld-logo { height: 20px; width: auto; object-fit: contain; vertical-align: middle; }
+  .ld-logo-big { height: 56px; width: auto; object-fit: contain; display: block; margin: 0 auto 8px; }
+  /* app prediction */
+  /* top of match detail: [ stadium photo + chips ]  |  [ prediction + odds ] */
+  .acc-top { display: flex; flex-wrap: wrap; gap: 16px; padding: 14px 16px; align-items: stretch; }
+  .acc-venue { flex: 1 1 340px; min-width: 260px; display: flex; flex-direction: column; }
+  .acc-venue .venue-banner { margin: 0; flex: 1 1 auto; }
+  .acc-pred-col { flex: 1 1 560px; min-width: 320px; max-width: 920px;
+    display: flex; flex-wrap: nowrap; gap: 12px; align-items: stretch;
+    background: var(--glass); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  /* three opinions side by side at a 6 : 2 : 2 ratio (app model · bookmaker · Claude) */
+  .predict    { flex: 6 1 0; min-width: 0; }
+  .odds-ref   { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 11px;
+    color: var(--mute); border-left: 1px dashed var(--line); padding-left: 12px; }
+  .ai-slot{ flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .odds-ref .or-lbl { font-weight: 700; color: var(--dim); margin-bottom: 2px; }
+  .odds-ref .or-v { display: flex; justify-content: space-between; gap: 12px; }
+  .odds-ref .or-v b { color: var(--text); font-family: var(--mono); word-break: break-word; }
+  .odds-ref .or-v.fav, .odds-ref .or-v.fav b { color: #1faa55; font-weight: 800; }   /* favorite (lowest odds) */
+  /* live LLM picks (Gemini / ChatGPT) — real external opinions next to the model & bookmaker */
+  .ai-pick { display: flex; flex-direction: column; gap: 5px; font-size: 11px;
+    border-left: 1px dashed var(--line); padding-left: 12px; min-width: 0; }
+  .cp-load { color: var(--mute); font-size: 11px; }
+  .cp-reason.muted { font-style: normal; }
+  .cp-head { font-weight: 800; color: #b07cff; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cp-diff { font-size: 9px; font-weight: 700; color: #e9a23b; border: 1px solid #e9a23b55;
+    border-radius: 6px; padding: 1px 5px; }
+  .cp-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .cp-t { color: var(--mute); font-size: 12px; word-break: break-word; }   /* losing / non-picked side */
+  .cp-t.w { color: var(--text); font-size: 13px; font-weight: 800; }   /* predicted winner — darker & bold */
+  .cp-score { font-family: var(--mono); color: var(--gold); font-weight: 400; }
+  .cp-conf { font-family: var(--mono); color: var(--dim); cursor: help; }
+  .cp-reason { color: var(--mute); line-height: 1.35; font-style: italic; }
+  .pred-load { color: var(--mute); font-size: 12px; padding: 6px 0; }
+  .pred-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .pred-score { text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 700; }
+  .pred-score b { color: var(--text); font-family: var(--mono); font-size: 13px; }
+  .pred-bar.slim { display: flex; height: 6px; border-radius: 999px; overflow: hidden; }
+  .pred-bar.slim .pb { transition: width .4s; }
+  .pred-bar .pb.h { background: #4a90e2; } .pred-bar .pb.d { background: #9aa6b2; } .pred-bar .pb.a { background: #e5705a; }
+  .pred-row { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; margin-top: 5px; color: var(--dim); }
+  .pred-row b { font-family: var(--mono); }
+  .pred-row > span { min-width: 0; word-break: break-word; }   /* long country names wrap instead of overflowing */
+  .pred-row .lh { color: #4a90e2; } .pred-row .la { color: #d2503a; }
+  .pred-factors { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+  .pred-factors .pf { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; align-items: baseline; }
+  .pred-factors .pf-nm { font-weight: 700; color: var(--text); word-break: break-word; flex: 0 1 auto; }
+  .pred-factors .pf-b { color: var(--mute); text-align: right; min-width: 0; }
+  .pred-weights { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .pw { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--dim); font-weight: 700; }
+  .pw > span { min-width: 30px; }
+  .pw input[type=range] { width: 72px; accent-color: var(--gold); cursor: pointer; }
+  .pw .pw-v { font-family: var(--mono); color: var(--gold); min-width: 8px; text-align: center; }
+  .pw-reset { font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; align-self: center; margin-left: auto;
+    background: var(--glass); border: 1px solid var(--line-2); color: var(--dim); border-radius: 8px; padding: 4px 9px; }
+  .pw-reset:hover { color: var(--text); border-color: var(--gold); }
+  .pw-reset.icon-only { padding: 0; width: 24px; height: 24px; font-size: 13px; line-height: 1;
+    display: grid; place-items: center; }
+  .pred-note { font-size: 10px; color: var(--mute); margin-top: 7px; opacity: .8; }
   .venue-banner {
-    position: relative; height: 118px; background-size: cover; background-position: center 40%;
+    position: relative; height: 118px; background-size: cover; background-position: center; border-radius: 12px; overflow: hidden;
   }
+  .venue-banner.big { height: 100%; min-height: 230px; }   /* aerial — matches prediction card height */
   .venue-banner .vb-grad { position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.82)); }
-  .venue-banner .vb-txt { position: absolute; left: 16px; bottom: 10px; display: flex; flex-direction: column; }
-  .venue-banner .vb-txt b { font-size: 16px; font-weight: 800; }
-  .venue-banner .vb-txt span { font-size: 11.5px; color: var(--dim); }
+    background: linear-gradient(180deg, rgba(0,0,0,.05) 40%, rgba(0,0,0,.85)); }
+  .venue-banner .vb-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px; display: flex;
+    flex-direction: column; gap: 8px; }
+  .venue-banner .vb-txt { display: flex; flex-direction: column; }
+  .venue-banner .vb-txt b { font-size: 16px; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+  .venue-banner .vb-txt span { font-size: 11.5px; color: rgba(255,255,255,.8); }
+  .venue-banner .vb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .venue-banner .vb-chips .achip { background: rgba(0,0,0,.45); backdrop-filter: blur(3px);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 4px 9px; }
+  .venue-banner .vb-chips .achip .l { font-size: 9px; color: rgba(255,255,255,.7); }
+  .venue-banner .vb-chips .achip .v { font-size: 12.5px; font-weight: 700; color: #fff; }
   .acc-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
     gap: 12px; padding: 14px 16px; }
   .ev-head { display: flex; align-items: center; justify-content: space-between; }
@@ -390,6 +514,8 @@
   .tle.clk:hover { border-color: var(--gold); background: rgba(233,196,106,.16); }
   .tle-play { font-size: 9px; color: var(--gold); }
   .og-tag { font-size: 9px; font-weight: 800; color: #ff8a7a; background: rgba(239,68,68,.18);
+    border-radius: 4px; padding: 0 4px; letter-spacing: .03em; }
+  .pk-tag { font-size: 9px; font-weight: 800; color: #e9c46a; background: rgba(233,196,106,.18);
     border-radius: 4px; padding: 0 4px; letter-spacing: .03em; }
   .tle-top { position: relative; }
   .sect-hint { color: var(--mute); font-weight: 600; letter-spacing: 0; font-size: 10px; text-transform: none; }
@@ -566,11 +692,13 @@
   .player.clk:hover { background: rgba(255,255,255,.05); }
   .player .avatar { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
     display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #0c0c0c; }
-  .player .pphoto { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
-    object-fit: cover; background: #1b1b1b; box-shadow: 0 0 0 1px var(--line-2); }
+  .player .pphoto { width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto;
+    object-fit: cover; object-position: center top;
+    background-color: #eef1f5; background-size: cover; background-position: center; }
   .player .pnum { font-family: var(--mono); font-size: 11px; color: var(--gold); font-weight: 700;
     min-width: 22px; }
   .player .pn { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player .sq-cd { font-size: 9px; flex: 0 0 auto; letter-spacing: -1px; }
   .player .pmeta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--mute);
     flex: 0 0 auto; text-align: right; display: flex; align-items: center; gap: 6px; }
   .agebadge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 999px; font-family: var(--font, inherit); }
@@ -585,11 +713,14 @@
   /* live match emphasis (time view) — strong green border + pulse */
   .match.islive { border: 2px solid var(--live);
     background: linear-gradient(180deg, rgba(40,198,107,.14), var(--glass));
-    animation: livepulse 2s ease-in-out infinite; }
+    animation: livepulse 1.1s ease-in-out infinite; }
   @keyframes livepulse {
-    0%,100% { box-shadow: 0 0 0 1px var(--live) inset, 0 0 14px rgba(40,198,107,.25); }
-    50%     { box-shadow: 0 0 0 1px var(--live) inset, 0 0 30px rgba(40,198,107,.5); }
+    0%,100% { border-color: rgba(40,198,107,.35);
+              box-shadow: 0 0 0 1px rgba(40,198,107,.3) inset, 0 0 12px rgba(40,198,107,.2); }
+    50%     { border-color: var(--live);
+              box-shadow: 0 0 0 2px var(--live) inset, 0 0 34px rgba(40,198,107,.65); }
   }
+  /* live score: standard color, no blink (live state shown by the card border) */
   .live-head { display: flex; align-items: center; gap: 8px; margin: 4px 4px 6px; max-width: 920px;
     margin-left: auto; margin-right: auto; font-size: 11px; font-weight: 800; letter-spacing: .12em;
     color: var(--live); text-transform: uppercase; }
@@ -600,13 +731,65 @@
   /* player detail popup (layers over team popup) */
   #poverlay { z-index: 60; }
   #poverlay .modal { width: min(440px, 100%); }
-  .pcard-head { display: flex; align-items: center; gap: 18px; padding: 26px 26px 20px;
+  .pcard-head { display: flex; align-items: center; gap: 20px; padding: 28px 26px 22px;
     background: radial-gradient(500px 180px at 100% 0, rgba(233,196,106,.18), transparent 70%); }
-  .pcard-head img { width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
-    background: #1b1b1b; box-shadow: 0 6px 20px rgba(0,0,0,.5), 0 0 0 1px var(--line-2); }
+  .pcard-head img, .pcard-head .pavatar { width: 168px; height: 168px; border-radius: 16px;
+    object-fit: cover; object-position: center top; flex: 0 0 auto;
+    background-color: #eef1f5; background-size: cover; background-position: center;  /* faded flag bg set inline */
+    box-shadow: 0 6px 20px rgba(0,0,0,.22); }
+  .pcard-head .pavatar { display: grid; place-items: center; font-size: 44px; font-weight: 800;
+    color: var(--mute); }
   .pcard-head .pnm { font-size: 20px; font-weight: 800; }
   .pcard-head .psub { color: var(--dim); font-size: 13px; margin-top: 3px; }
   .modal .loading { padding: 50px; text-align: center; color: var(--mute); }
+  /* lineup button on the match card + right-side lineup panel */
+  .lineup-btn { margin-top: 6px; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--line-2); color: var(--dim); border-radius: 8px; padding: 3px 8px; }
+  .lineup-btn:hover { color: var(--text); border-color: var(--gold); }
+  /* lineup modal — same chrome as team/player detail (header bar + scrolling body) */
+  .lineup-ov .lineup-panel { width: min(820px, 96%); max-height: 86vh; overflow: hidden; color: var(--text);
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #141414, #0b0b0b);
+    border: 1px solid var(--line-2); border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7); animation: pop .2s ease; }
+  .lineup-ov .lp-mh { position: relative; flex: 0 0 auto; padding: 22px 26px;
+    background: radial-gradient(600px 200px at 100% 0, rgba(233,196,106,.2), transparent 70%),
+                linear-gradient(180deg, rgba(255,255,255,.05), transparent);
+    border-bottom: 1px solid var(--line); }
+  .lineup-ov .lp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px 24px; }
+  .lineup-ov .close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px;
+    border-radius: 9px; border: 1px solid var(--line-2); background: var(--glass); color: var(--dim);
+    cursor: pointer; font-size: 17px; }
+  .lineup-ov .close:hover { color: var(--text); border-color: var(--gold); }
+  .lp-head { font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin: 0; }
+  .lp-load, .lp-empty { color: var(--mute); padding: 16px 0; display: flex; align-items: center; gap: 8px; }
+  .lp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px){ .lp-cols { grid-template-columns: 1fr; } }
+  .lp-team { font-weight: 800; font-size: 15px; margin-bottom: 6px; color: var(--text); }
+  .lp-form { font-size: 11px; color: var(--gold); font-family: var(--mono); font-weight: 700; }
+  .lp-sect { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--mute);
+    margin: 12px 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  .lp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12.5px; }
+  .lp-num { font-family: var(--mono); color: var(--gold); min-width: 20px; text-align: right; font-size: 11px; }
+  .lp-pos { font-size: 9px; color: var(--mute); min-width: 32px; }
+  .lp-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lp-x { font-size: 9px; } .lp-x.out { color: #e5705a; } .lp-x.in { color: #34c759; }
+  .lp-ic { font-size: 11px; min-width: 16px; }
+  .lp-pred-note { font-size: 10px; font-weight: 500; color: var(--mute); margin-left: 6px; }
+  .lineup-btn.pred { color: #b07cff; border-color: #b07cff55; }
+  .lp-row .cd { font-size: 10px; }
+  /* formation pitch (starting XI) */
+  .pitch { background: linear-gradient(180deg, #1c6e3c, #14572e); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px; padding: 16px 4px; display: flex; flex-direction: column;
+    justify-content: space-between; gap: 8px; min-height: 380px; margin: 6px 0 4px; }
+  .pitch-row { display: flex; justify-content: space-around; align-items: flex-start; gap: 2px; }
+  .pp { display: flex; flex-direction: column; align-items: center; width: 66px; text-align: center; }
+  .pp img, .pp .pp-av { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: center top;
+    background: #0d3a20; box-shadow: 0 0 0 2px rgba(255,255,255,.55), 0 2px 5px rgba(0,0,0,.4); }
+  .pp .pp-av { display: grid; place-items: center; font-size: 14px; font-weight: 800; color: #fff; }
+  .pp .pp-nm { font-size: 9px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 66px; margin-top: 3px; font-weight: 600; }
+  .pp .pp-pos { font-size: 8px; color: rgba(255,255,255,.72); }
+  .pp .pp-cd { font-size: 8px; margin-top: 1px; }
 </style>
 </head>
 <body>
@@ -621,17 +804,22 @@
         <span class="t-host" id="edHost">USA · Canada · Mexico</span>
       </div>
     </div>
-    <select class="edition-sel" id="editionSel" onchange="changeEdition(this.value)" title="월드컵 회차"></select>
+    <select class="edition-sel" id="editionSel" onchange="changeEdition(this.value)" title="World Cup edition"></select>
     <div class="head-right">
       <span class="src-badge" id="srcBadge"><span class="led"></span><span id="srcText">…</span></span>
-      <button class="icon-btn" id="themeBtn" title="테마 변경" onclick="cycleTheme()">🎨</button>
-      <button class="icon-btn" id="refreshBtn" title="새로고침">↻</button>
-      <button class="tz-check" id="tzToggle" onclick="toggleTz()" title="체크: 경기장 현지시간 / 해제: 한국시간">현지시간</button>
       <div class="toggle" id="viewToggle">
-        <button id="tabTime" class="active" onclick="setView('time')"><span class="ic">🕘</span>일정</button>
-        <button id="tabGroup" onclick="setView('group')"><span class="ic">▦</span>조별</button>
-        <button id="tabBracket" onclick="setView('bracket')"><span class="ic">🏆</span>대진표</button>
+        <button id="tabTime" class="active" onclick="setView('time')"><span class="ic">🕘</span>Schedule</button>
+        <button id="tabGroup" onclick="setView('group')"><span class="ic">▦</span>Groups</button>
+        <button id="tabBracket" onclick="setView('bracket')"><span class="ic">🏆</span>Bracket</button>
+        <button id="tabAcc" onclick="setView('acc')"><span class="ic">📊</span>Accuracy</button>
       </div>
+      <span class="head-div"></span>
+      <select class="lang-sel" id="langSel" onchange="setLang(this.value)" title="Language">
+        <option value="en">🌐 EN</option><option value="ko">🌐 KR</option><option value="zh">🌐 ZH</option><option value="ja">🌐 JP</option>
+      </select>
+      <button class="icon-btn" id="themeBtn" title="Change theme" onclick="cycleTheme()">🎨</button>
+      <button class="icon-btn" id="refreshBtn" title="Refresh">↻</button>
+      <button class="icon-btn" id="tzToggle" onclick="toggleTz()" title="Checked: venue local time / Unchecked: KST">📍</button>
     </div>
   </header>
 
@@ -643,7 +831,7 @@
     <div class="nav" onclick="scrollDates(1)">›</div>
   </div>
 
-  <main id="main"><div class="empty"><div class="big">⚽</div>불러오는 중…</div></main>
+  <main id="main"><div class="empty"><img class="ld-logo-big" src="/assets/logo.png">Loading…</div></main>
 
   <!-- team detail popup -->
   <div class="overlay" id="overlay" onclick="if(event.target===this) closeTeam()">
@@ -654,9 +842,59 @@
     <div class="modal" id="pmodal"></div>
   </div>
 
+  <!-- lineup side panel -->
+  <div class="overlay lineup-ov" id="lineupOverlay" onclick="if(event.target===this) closeLineup()">
+    <div class="lineup-panel" id="lineupPanel"></div>
+  </div>
+
 <script>
 const POS_ORDER = ["Goalkeeper", "Defence", "Midfield", "Offence"];
-const POS_KO = { Goalkeeper:"골키퍼", Defence:"수비수", Midfield:"미드필더", Offence:"공격수" };
+const POS_I18N = {
+  Goalkeeper:{en:"Goalkeeper",ko:"골키퍼",zh:"门将",ja:"GK"},
+  Defence:{en:"Defender",ko:"수비수",zh:"后卫",ja:"DF"},
+  Midfield:{en:"Midfielder",ko:"미드필더",zh:"中场",ja:"MF"},
+  Offence:{en:"Forward",ko:"공격수",zh:"前锋",ja:"FW"},
+  "기타":{en:"Other",ko:"기타",zh:"其他",ja:"その他"},
+};
+// ---------- i18n (English default; Korean / Chinese / Japanese) ----------
+let LANG = localStorage.getItem("wc_lang") || "en";
+const LOCALES = { en:"en-US", ko:"ko-KR", zh:"zh-CN", ja:"ja-JP" };
+const dloc = () => LOCALES[LANG] || "en-US";
+const edLogo = () => { const e = document.getElementById("edEmblem"); return (e && e.src) || "/assets/logo.png"; };
+// route remote photos through the local image cache (download once, served from disk)
+const imgUrl = u => (u && /^https?:/.test(u)) ? "/img?u="+encodeURIComponent(u) : (u||"");
+const I18N = {
+ en:{loading:"Loading…",loadingYear:"Loading {y}…",loadFail:"Failed to load",teamLoading:"Loading team…",teamFail:"Couldn't load team info.<br>Please try again.",close:"Close",standingsLoading:"Loading standings…",noStandings:"No standings data",noMatchesDay:"No matches on this day",noSchedule:"No matches",matches:"{n} matches",expandAll:"Expand all",collapseAll:"Collapse all",bracketPending:"The knockout bracket is set after the group stage",matchLoading:"Loading match info…",matchFail:"Couldn't load info",noEventsYet:"No events recorded yet",noMatchDetail:"Match details not found",events:"Events",eventsHint:"← match time →",noRecord:"none",highlight:"Highlight",playGoal:"Play goal highlight",schedule:"Schedule",groups:"Groups",bracket:"Bracket",tabAccuracy:"Accuracy",accPredictor:"Predictor",accOutcome:"Outcome",accExact:"Exact score",accGradeAI:"Grade AI picks",accGrading:"Grading…",accNote:"Outcome = winner correct. AI picks (Gemini/ChatGPT) count only matches already graded — tap 'Grade AI picks' to fill the rest.",accNoData:"No finished matches yet",accByRound:"By round",roundN:"Round {n}",localTime:"Local time",tzHint:"Checked: venue local time / Unchecked: KST",editionTitle:"World Cup edition",themeChange:"Change theme",toDark:"Switch to dark mode",toLight:"Switch to light mode",refresh:"Refresh",alertOn:"Turn off alerts",alertOff:"Get alerts",alertMatch:"Get match alerts",saved:"Saved",saving:"Saving…",champion:"Champion",runnerUp:"Runner-up",third:"3rd",goalsN:"({n} goals)",final:"Final",opening:"Opening Ceremony",finalFull:"Final (full)",finalHl:"Final H/L",live:"LIVE",finished:"FT",liveHT:"HT",liveET:"ET",tbd:"TBD",thirdPlace:"3rd place",st32:"Round of 32",st16:"Round of 16",stQF:"Quarter-finals",stSF:"Semi-finals",capacity:"Capacity",seatsUnit:"",surface:"Surface",attendance:"Attendance",temp:"Temp",humidity:"Humidity",odds:"Odds",home:"Home",draw:"Draw",away:"Away",firstHalf:"1st",secondHalf:"2nd",extra:"ET",thTeam:"Team",thP:"P",thW:"W",thD:"D",thL:"L",thGD:"GD",thPts:"Pts",continent:"Confederation",capital:"Capital",population:"Population",popUnit:"",area:"Area",founded:"Founded",wcHistory:"World Cup history",scheduleTitle:"Schedule",squad:"Squad",coach:"Coach",apps:"Appearances",other:"Other",bestResult:"Best result",timesN:"{n}",appsN:"{n}",youngest:"Youngest",oldest:"Oldest",unavail:"Out",injured:"Injured",club:"Club",lookup:"Looking up…",position:"Position",wcGoals:"Goals (this WC)",wcGoalsAll:"Goals (all WCs)",cardYellow:"Yellow cards",cardRed:"Red cards",number:"No.",ageL:"Age",birthday:"Birthday",height:"Height",weight:"Weight",birthplace:"Birthplace",outOfSquad:"Unavailable",ageN:"{n}",upcoming:"Upcoming",groupStage:"Group stage",debut:"Debut",place4:"4th",unbeaten:"unbeaten",zaire:"Zaire",appPredict:"Prediction · app model",predicting:"Analyzing…",factorForm:"Form",factorInj:"Injuries",factorCards:"Cards",factorPts:"Points",factorGd:"GoalDiff",factorHome:"Home",predNote:"From FIFA ranking + this tournament's form, injuries & cards",today:"TODAY",oddsRef:"Betting odds (ESPN)",predScore:"Likely score",claudePick:"Claude's pick",cDiffer:"differs from model",cReasonEven:"Too close to call — a slight edge.",cReasonStar:"{who} is in red-hot form.",cReasonPower:"Tournament pedigree in the big games.",cReasonForm:"Riding strong momentum.",cReasonHome:"Home advantage tips it.",cReasonStrength:"The stronger, deeper side.",cConfLbl:"win prob",cConfHint:"The model's estimated probability this pick is correct",aiNoKey:"Add {k} to config.json to enable",aiFail:"Couldn't reach the model",aiQuota:"Out of quota / credits (billing required)",wind:"Wind",alt:"Altitude",lineup:"Lineup",predLineup:"Predicted XI",predLineupNote:"estimate — out injured/suspended players, shape vs opponent",lineupOut:"Unavailable",suspended:"Suspended",startingXI:"Starting XI",subs:"Substitutes",strength:"Strength",keyPlayers:"Top scorers",reset:"Reset",calibration:"Calibration",notifKickoff:"⚽ Kickoff",notifGoal:"⚽ Goal!",notifGoalBy:"⚽ {who} — Goal!",notifFT:"🏁 Full time"},
+ ko:{loading:"불러오는 중…",loadingYear:"{y} 불러오는 중…",loadFail:"불러오기 실패",teamLoading:"팀 정보 불러오는 중…",teamFail:"팀 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.",close:"닫기",standingsLoading:"조별 순위 불러오는 중…",noStandings:"조별 순위 데이터가 없습니다",noMatchesDay:"이 날짜에 경기가 없습니다",noSchedule:"경기 일정이 없습니다",matches:"{n} 경기",expandAll:"전경기 펼치기",collapseAll:"전경기 접기",bracketPending:"토너먼트 대진은 조별리그 종료 후 확정됩니다",matchLoading:"경기 정보 불러오는 중…",matchFail:"정보를 불러올 수 없습니다",noEventsYet:"아직 기록된 이벤트가 없습니다",noMatchDetail:"이 경기의 상세 정보를 찾지 못했습니다",events:"이벤트",eventsHint:"← 경기 시간 →",noRecord:"기록 없음",highlight:"하이라이트",playGoal:"골 하이라이트 재생",schedule:"일정",groups:"조별",bracket:"대진표",tabAccuracy:"예측성적",accPredictor:"예측기",accOutcome:"승부 적중",accExact:"정확 스코어",accGradeAI:"AI 채점",accGrading:"채점 중…",accNote:"승부 적중 = 승자 맞춤. AI(Gemini/ChatGPT)는 이미 채점된 경기만 집계됩니다 — 'AI 채점'을 누르면 나머지를 채웁니다.",accNoData:"아직 종료된 경기가 없습니다",accByRound:"차수별 결과",roundN:"{n}차전",localTime:"현지시간",tzHint:"체크: 경기장 현지시간 / 해제: 한국시간",editionTitle:"월드컵 회차",themeChange:"테마 변경",toDark:"다크 모드로 전환",toLight:"라이트 모드로 전환",refresh:"새로고침",alertOn:"알림 끄기",alertOff:"알림 받기",alertMatch:"경기 알림 받기",saved:"저장됨",saving:"저장 중…",champion:"우승",runnerUp:"준우승",third:"3위",goalsN:"({n}골)",final:"결승",opening:"개막식",finalFull:"결승 풀경기",finalHl:"결승 H/L",live:"LIVE",finished:"종료",liveHT:"하프타임",liveET:"연장",tbd:"미정",thirdPlace:"3·4위전",st32:"32강",st16:"16강",stQF:"8강",stSF:"4강",capacity:"수용인원",seatsUnit:"석",surface:"표면",attendance:"관중",temp:"온도",humidity:"습도",odds:"배당",home:"홈",draw:"무",away:"원정",firstHalf:"전반",secondHalf:"후반",extra:"연장",thTeam:"팀",thP:"경기",thW:"승",thD:"무",thL:"패",thGD:"득실",thPts:"승점",continent:"대륙",capital:"수도",population:"인구",popUnit:"명",area:"면적",founded:"협회창설",wcHistory:"월드컵 역대 성적",scheduleTitle:"일정",squad:"선수단",coach:"감독",apps:"본선 출전",other:"그 외",bestResult:"최고 성적",timesN:"{n}회",appsN:"{n}회",youngest:"최연소",oldest:"최고령",unavail:"출전불가",injured:"부상",club:"소속팀",lookup:"조회 중…",position:"포지션",wcGoals:"이번 월드컵 득점",wcGoalsAll:"통산 월드컵 득점",cardYellow:"경고(옐로)",cardRed:"퇴장(레드)",number:"등번호",ageL:"나이",birthday:"생일",height:"신장",weight:"체중",birthplace:"출생지",outOfSquad:"출전 불가",ageN:"{n}세",upcoming:"예정",groupStage:"조별리그",debut:"첫 출전",place4:"4위",unbeaten:"무패",zaire:"자이르",appPredict:"예측 · 앱 모델",predicting:"분석 중…",factorForm:"최근",factorInj:"부상",factorCards:"카드",factorPts:"승점",factorGd:"득실",factorHome:"홈",predNote:"FIFA 랭킹 + 이번 대회 성적·부상·카드 종합",today:"오늘",oddsRef:"베팅 배당 (ESPN)",predScore:"예상 스코어",claudePick:"Claude 예측",cDiffer:"모델과 다른 의견",cReasonEven:"막상막하 — 근소한 우위.",cReasonStar:"{who}의 폼이 절정.",cReasonPower:"빅매치에 강한 전통 강호.",cReasonForm:"상승세를 타고 있음.",cReasonHome:"홈 이점이 승부를 가른다.",cReasonStrength:"전력·뎁스에서 우위.",cConfLbl:"적중확률",cConfHint:"이 픽이 맞을 것으로 모델이 추정한 확률",aiNoKey:"config.json에 {k} 추가하면 활성화",aiFail:"모델 호출 실패",aiQuota:"할당량/크레딧 없음 (결제 필요)",wind:"풍속",alt:"고도",lineup:"라인업",predLineup:"예상 라인업",predLineupNote:"추정 — 부상·출장정지 제외, 상대 맞춤 포메이션",lineupOut:"결장",suspended:"출장정지",startingXI:"선발",subs:"교체",strength:"강도",keyPlayers:"주요 득점",reset:"초기화",calibration:"보정",notifKickoff:"⚽ 경기 시작",notifGoal:"⚽ 골!",notifGoalBy:"⚽ {who} 골!",notifFT:"🏁 경기 종료"},
+ zh:{loading:"加载中…",loadingYear:"加载 {y}…",loadFail:"加载失败",teamLoading:"加载球队…",teamFail:"无法加载球队信息。<br>请稍后重试。",close:"关闭",standingsLoading:"加载排名…",noStandings:"暂无排名数据",noMatchesDay:"当天没有比赛",noSchedule:"暂无赛程",matches:"{n} 场",expandAll:"展开全部",collapseAll:"收起全部",bracketPending:"淘汰赛对阵将在小组赛结束后确定",matchLoading:"加载比赛信息…",matchFail:"无法加载信息",noEventsYet:"暂无事件记录",noMatchDetail:"未找到该场比赛详情",events:"事件",eventsHint:"← 比赛时间 →",noRecord:"无记录",highlight:"集锦",playGoal:"播放进球集锦",schedule:"赛程",groups:"小组",bracket:"对阵表",tabAccuracy:"预测战绩",accPredictor:"预测器",accOutcome:"胜负命中",accExact:"精确比分",accGradeAI:"AI 评分",accGrading:"评分中…",accNote:"胜负命中=猜对胜方。AI(Gemini/ChatGPT)仅统计已评分的比赛 — 点击'AI 评分'补全其余。",accNoData:"暂无已结束的比赛",accByRound:"分轮次",roundN:"第{n}轮",localTime:"当地时间",tzHint:"勾选：球场当地时间 / 取消：韩国时间",editionTitle:"世界杯届次",themeChange:"切换主题",toDark:"切换到深色模式",toLight:"切换到浅色模式",refresh:"刷新",alertOn:"关闭提醒",alertOff:"开启提醒",alertMatch:"开启比赛提醒",saved:"已保存",saving:"保存中…",champion:"冠军",runnerUp:"亚军",third:"季军",goalsN:"({n}球)",final:"决赛",opening:"开幕式",finalFull:"决赛全场",finalHl:"决赛集锦",live:"LIVE",finished:"完场",liveHT:"中场",liveET:"加时",tbd:"待定",thirdPlace:"三四名决赛",st32:"32强",st16:"16强",stQF:"8强",stSF:"4强",capacity:"容量",seatsUnit:"座",surface:"场地",attendance:"观众",temp:"气温",humidity:"湿度",odds:"赔率",home:"主",draw:"平",away:"客",firstHalf:"上半场",secondHalf:"下半场",extra:"加时",thTeam:"球队",thP:"场",thW:"胜",thD:"平",thL:"负",thGD:"净胜",thPts:"积分",continent:"大洲",capital:"首都",population:"人口",popUnit:"人",area:"面积",founded:"成立",wcHistory:"世界杯历史战绩",scheduleTitle:"赛程",squad:"球员名单",coach:"主教练",apps:"参赛次数",other:"其他",bestResult:"最佳成绩",timesN:"{n}次",appsN:"{n}次",youngest:"最年轻",oldest:"最年长",unavail:"不可出场",injured:"伤病",club:"所属球队",lookup:"查询中…",position:"位置",wcGoals:"本届进球",wcGoalsAll:"世界杯总进球",cardYellow:"黄牌",cardRed:"红牌",number:"号码",ageL:"年龄",birthday:"生日",height:"身高",weight:"体重",birthplace:"出生地",outOfSquad:"无法出场",ageN:"{n}岁",upcoming:"未赛",groupStage:"小组赛",debut:"首次参赛",place4:"第4名",unbeaten:"不败",zaire:"扎伊尔",appPredict:"预测 · 应用模型",predicting:"分析中…",factorForm:"状态",factorInj:"伤病",factorCards:"牌",factorPts:"积分",factorGd:"净胜",factorHome:"主场",predNote:"综合 FIFA 排名 + 本届成绩·伤病·红黄牌",today:"今天",oddsRef:"博彩赔率 (ESPN)",predScore:"预测比分",claudePick:"Claude 预测",cDiffer:"与模型不同",cReasonEven:"势均力敌 — 略占上风。",cReasonStar:"{who} 状态火热。",cReasonPower:"大赛底蕴深厚。",cReasonForm:"势头正旺。",cReasonHome:"主场优势占先。",cReasonStrength:"实力与厚度更胜一筹。",cConfLbl:"命中概率",cConfHint:"模型估计该预测正确的概率",aiNoKey:"在 config.json 添加 {k} 即可启用",aiFail:"无法连接模型",aiQuota:"额度/余额不足 (需付费)",wind:"风速",alt:"海拔",lineup:"阵容",predLineup:"预测阵容",predLineupNote:"预估 — 已排除伤停球员，按对手调整阵型",lineupOut:"缺阵",suspended:"停赛",startingXI:"首发",subs:"替补",strength:"实力",keyPlayers:"主要射手",reset:"重置",calibration:"校准",notifKickoff:"⚽ 开球",notifGoal:"⚽ 进球！",notifGoalBy:"⚽ {who} 进球！",notifFT:"🏁 完场"},
+ ja:{loading:"読み込み中…",loadingYear:"{y} を読み込み中…",loadFail:"読み込み失敗",teamLoading:"チーム情報を読み込み中…",teamFail:"チーム情報を読み込めませんでした。<br>後ほど再試行してください。",close:"閉じる",standingsLoading:"順位を読み込み中…",noStandings:"順位データがありません",noMatchesDay:"この日は試合がありません",noSchedule:"試合がありません",matches:"{n} 試合",expandAll:"全試合を展開",collapseAll:"全試合を折りたたむ",bracketPending:"決勝トーナメントの組み合わせはグループステージ終了後に確定します",matchLoading:"試合情報を読み込み中…",matchFail:"情報を読み込めません",noEventsYet:"まだイベントの記録がありません",noMatchDetail:"この試合の詳細が見つかりません",events:"イベント",eventsHint:"← 試合時間 →",noRecord:"記録なし",highlight:"ハイライト",playGoal:"ゴールハイライト再生",schedule:"日程",groups:"グループ",bracket:"トーナメント",tabAccuracy:"予測成績",accPredictor:"予測者",accOutcome:"勝敗的中",accExact:"スコア的中",accGradeAI:"AI採点",accGrading:"採点中…",accNote:"勝敗的中=勝者を当てた。AI(Gemini/ChatGPT)は採点済みの試合のみ集計 — 「AI採点」で残りを補完。",accNoData:"まだ終了した試合がありません",accByRound:"節別の結果",roundN:"第{n}節",localTime:"現地時間",tzHint:"チェック：会場の現地時間 / 解除：韓国時間",editionTitle:"ワールドカップ大会",themeChange:"テーマ変更",toDark:"ダークモードに切替",toLight:"ライトモードに切替",refresh:"更新",alertOn:"通知オフ",alertOff:"通知オン",alertMatch:"試合通知を受け取る",saved:"保存済み",saving:"保存中…",champion:"優勝",runnerUp:"準優勝",third:"3位",goalsN:"({n}点)",final:"決勝",opening:"開会式",finalFull:"決勝フル",finalHl:"決勝H/L",live:"LIVE",finished:"終了",liveHT:"ハーフタイム",liveET:"延長",tbd:"未定",thirdPlace:"3位決定戦",st32:"ベスト32",st16:"ベスト16",stQF:"準々決勝",stSF:"準決勝",capacity:"収容人数",seatsUnit:"席",surface:"ピッチ",attendance:"観客",temp:"気温",humidity:"湿度",odds:"オッズ",home:"ホーム",draw:"分",away:"アウェイ",firstHalf:"前半",secondHalf:"後半",extra:"延長",thTeam:"チーム",thP:"試",thW:"勝",thD:"分",thL:"敗",thGD:"得失",thPts:"勝点",continent:"大陸",capital:"首都",population:"人口",popUnit:"人",area:"面積",founded:"創設",wcHistory:"W杯成績",scheduleTitle:"日程",squad:"メンバー",coach:"監督",apps:"本大会出場",other:"その他",bestResult:"最高成績",timesN:"{n}回",appsN:"{n}回",youngest:"最年少",oldest:"最年長",unavail:"出場不可",injured:"負傷",club:"所属",lookup:"照会中…",position:"ポジション",wcGoals:"今大会の得点",wcGoalsAll:"W杯通算得点",cardYellow:"警告",cardRed:"退場",number:"背番号",ageL:"年齢",birthday:"生年月日",height:"身長",weight:"体重",birthplace:"出身地",outOfSquad:"出場不可",ageN:"{n}歳",upcoming:"予定",groupStage:"グループステージ",debut:"初出場",place4:"4位",unbeaten:"無敗",zaire:"ザイール",appPredict:"予測 · アプリ",predicting:"分析中…",factorForm:"調子",factorInj:"負傷",factorCards:"カード",factorPts:"勝点",factorGd:"得失",factorHome:"ホーム",predNote:"FIFAランク+今大会の成績・負傷・カードを総合",today:"今日",oddsRef:"ブックメーカー (ESPN)",predScore:"予想スコア",claudePick:"Claude 予想",cDiffer:"モデルと異なる",cReasonEven:"互角 — わずかに優位。",cReasonStar:"{who} が絶好調。",cReasonPower:"大舞台に強い伝統国。",cReasonForm:"勢いに乗る。",cReasonHome:"ホームの利が後押し。",cReasonStrength:"地力と層で上回る。",cConfLbl:"的中確率",cConfHint:"この予想が当たるとモデルが推定する確率",aiNoKey:"config.json に {k} を追加で有効化",aiFail:"モデルに接続できません",aiQuota:"残量/クレジット不足 (課金が必要)",wind:"風速",alt:"標高",lineup:"スタメン",predLineup:"予想スタメン",predLineupNote:"推定 — 負傷・出場停止を除外、相手に応じた布陣",lineupOut:"欠場",suspended:"出場停止",startingXI:"先発",subs:"控え",strength:"強さ",keyPlayers:"得点者",reset:"リセット",calibration:"補正",notifKickoff:"⚽ キックオフ",notifGoal:"⚽ ゴール！",notifGoalBy:"⚽ {who} ゴール！",notifFT:"🏁 試合終了"},
+};
+function tr(k, p){
+  const d = I18N[LANG] || {};
+  let s = (k in d) ? d[k] : (k in I18N.en ? I18N.en[k] : k);   // "in" so empty-string values are valid
+  if (p) for (const key in p) s = s.split("{"+key+"}").join(p[key]);
+  return s;
+}
+function posName(p){ const e = POS_I18N[p]; return e ? (e[LANG]||e.en) : (p || tr("other")); }
+function trStatus(s){ return s === "부상" ? tr("injured") : (s || tr("unavail")); }
+// translate Korean result phrases stored in country data (e.g. "조별리그 (무패, 2010)") — keep years/structure
+const RESULT_TOKENS = [["조별리그","groupStage"],["첫 출전","debut"],["16강","st16"],["8강","stQF"],["4위","place4"],["준우승","runnerUp"],["우승","champion"],["3위","third"],["무패","unbeaten"],["자이르","zaire"]];
+function trResult(s){ if(!s) return s; let o=s; for(const [k,key] of RESULT_TOKENS) o=o.split(k).join(tr(key)); return o; }
+function stageName(st){ return ({LAST_32:tr("st32"),LAST_16:tr("st16"),QUARTER_FINALS:tr("stQF"),SEMI_FINALS:tr("stSF"),THIRD_PLACE:tr("thirdPlace"),FINAL:tr("final")})[st] || (st||"").replace(/_/g," "); }
+function groupLabel(letter){ const L=(letter||"").toUpperCase(); return LANG==="en"?("Group "+L):LANG==="ja"?("グループ"+L):(L+(LANG==="zh"?"组":"조")); }
+function applyStaticI18n(){
+  const tt=document.getElementById("tabTime"); if(tt) tt.innerHTML='<span class="ic">🕘</span>'+tr("schedule");
+  const tg=document.getElementById("tabGroup"); if(tg) tg.innerHTML='<span class="ic">▦</span>'+tr("groups");
+  const tb2=document.getElementById("tabBracket"); if(tb2) tb2.innerHTML='<span class="ic">🏆</span>'+tr("bracket");
+  const ta=document.getElementById("tabAcc"); if(ta) ta.innerHTML='<span class="ic">📊</span>'+tr("tabAccuracy");
+  const rb=document.getElementById("refreshBtn"); if(rb) rb.title=tr("refresh");
+  const es=document.getElementById("editionSel"); if(es) es.title=tr("editionTitle");
+  const tz=document.getElementById("tzToggle"); if(tz) tz.title=tr("tzHint");   // icon button — keep 📍, localize tooltip only
+  const tb=document.getElementById("themeBtn"); if(tb) tb.title=(document.body.dataset.theme==="light")?tr("toDark"):tr("toLight");
+  const ls=document.getElementById("langSel"); if(ls) ls.value=LANG;
+  document.documentElement.lang = LANG;
+}
+function setLang(l){ LANG=l; localStorage.setItem("wc_lang", l); applyStaticI18n(); try{ renderDateStrip(); }catch(e){} try{ render(); }catch(e){} }
 const POS_COLOR = { Goalkeeper:"#e9c46a", Defence:"#5aa9ff", Midfield:"#34c759", Offence:"#ff6b5a" };
 const posColor = k => POS_COLOR[k] || "#9aa6b2";
 const initials = n => (n||"").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase() || "·";
@@ -675,28 +913,38 @@ function applyTheme(mode){
   if (light) document.body.dataset.theme = "light"; else document.body.removeAttribute("data-theme");
   localStorage.setItem("wc_theme", light?"light":"dark");
   const b = document.getElementById("themeBtn");
-  if (b){ b.textContent = light?"🌙":"☀️"; b.title = light?"다크 모드로 전환":"라이트 모드로 전환"; }
+  if (b){ b.textContent = light?"🌙":"☀️"; b.title = light?tr("toDark"):tr("toLight"); }
 }
 function cycleTheme(){ applyTheme((localStorage.getItem("wc_theme")||"light")==="dark" ? "light" : "dark"); }
 applyTheme(localStorage.getItem("wc_theme")||"light");   // light is the default
 const playerCache = {};  // player id -> full squad info (from ESPN, photos merged from API-Football)
 let currentTeamName = "";
+let currentTeamFlag = "";   // flag of the team whose detail is open (for player-photo backdrop)
 // continent by team name (Korean + English)
 const CONTINENT = {
-  "Germany":"유럽 (Europe)","France":"유럽 (Europe)","Spain":"유럽 (Europe)","England":"유럽 (Europe)",
-  "Netherlands":"유럽 (Europe)","Belgium":"유럽 (Europe)","Croatia":"유럽 (Europe)","Portugal":"유럽 (Europe)",
-  "Switzerland":"유럽 (Europe)","Austria":"유럽 (Europe)","Sweden":"유럽 (Europe)","Norway":"유럽 (Europe)",
-  "Scotland":"유럽 (Europe)","Czechia":"유럽 (Europe)","Turkey":"유럽 (Europe)","Bosnia-Herzegovina":"유럽 (Europe)",
-  "Brazil":"남미 (S. America)","Argentina":"남미 (S. America)","Uruguay":"남미 (S. America)",
-  "Ecuador":"남미 (S. America)","Colombia":"남미 (S. America)","Paraguay":"남미 (S. America)",
-  "Mexico":"북중미 (CONCACAF)","United States":"북중미 (CONCACAF)","Canada":"북중미 (CONCACAF)",
-  "Panama":"북중미 (CONCACAF)","Haiti":"북중미 (CONCACAF)","Curaçao":"북중미 (CONCACAF)",
-  "Japan":"아시아 (Asia)","South Korea":"아시아 (Asia)","Iran":"아시아 (Asia)","Saudi Arabia":"아시아 (Asia)",
-  "Qatar":"아시아 (Asia)","Australia":"아시아 (Asia)","Uzbekistan":"아시아 (Asia)","Jordan":"아시아 (Asia)","Iraq":"아시아 (Asia)",
-  "Morocco":"아프리카 (Africa)","Senegal":"아프리카 (Africa)","Tunisia":"아프리카 (Africa)","Egypt":"아프리카 (Africa)",
-  "Algeria":"아프리카 (Africa)","Ivory Coast":"아프리카 (Africa)","Ghana":"아프리카 (Africa)","South Africa":"아프리카 (Africa)",
-  "Cape Verde Islands":"아프리카 (Africa)","Congo DR":"아프리카 (Africa)","New Zealand":"오세아니아 (Oceania)"
+  "Germany":"eu","France":"eu","Spain":"eu","England":"eu",
+  "Netherlands":"eu","Belgium":"eu","Croatia":"eu","Portugal":"eu",
+  "Switzerland":"eu","Austria":"eu","Sweden":"eu","Norway":"eu",
+  "Scotland":"eu","Czechia":"eu","Turkey":"eu","Türkiye":"eu","Bosnia-Herzegovina":"eu","Cape Verde":"af",
+  "Brazil":"sa","Argentina":"sa","Uruguay":"sa",
+  "Ecuador":"sa","Colombia":"sa","Paraguay":"sa",
+  "Mexico":"na","United States":"na","Canada":"na",
+  "Panama":"na","Haiti":"na","Curaçao":"na",
+  "Japan":"as","South Korea":"as","Iran":"as","Saudi Arabia":"as",
+  "Qatar":"as","Australia":"as","Uzbekistan":"as","Jordan":"as","Iraq":"as",
+  "Morocco":"af","Senegal":"af","Tunisia":"af","Egypt":"af",
+  "Algeria":"af","Ivory Coast":"af","Ghana":"af","South Africa":"af",
+  "Cape Verde Islands":"af","Congo DR":"af","New Zealand":"oc"
+}
+const CONT_I18N = {
+  eu:{en:"Europe",ko:"유럽",zh:"欧洲",ja:"ヨーロッパ"},
+  sa:{en:"South America",ko:"남미",zh:"南美洲",ja:"南米"},
+  na:{en:"CONCACAF",ko:"북중미",zh:"中北美",ja:"北中米"},
+  as:{en:"Asia",ko:"아시아",zh:"亚洲",ja:"アジア"},
+  af:{en:"Africa",ko:"아프리카",zh:"非洲",ja:"アフリカ"},
+  oc:{en:"Oceania",ko:"오세아니아",zh:"大洋洲",ja:"オセアニア"},
 };
+function contName(team){ const k=CONTINENT[team]; return k ? (CONT_I18N[k][LANG]||CONT_I18N[k].en) : null; };
 
 // timezone-aware formatting. "kst" = Asia/Seoul; "local" = each match's venue tz
 // (from venues.json), falling back to the host-region tz (TZ.local, from /api/status).
@@ -716,6 +964,8 @@ function computeDates(){
   state.dates = [...set].sort();
 }
 const flagFb = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='26'%3E%3Crect width='38' height='26' rx='4' fill='%23222'/%3E%3C/svg%3E";
+// faded flag-color backdrop for a player photo (shows behind transparent cutouts); empty when no flag
+const flagBg = f => f ? `background-image:linear-gradient(rgba(244,246,249,.6),rgba(244,246,249,.6)),url('${f}')` : "";
 
 function setSrc(source) { state.source = source; updateBadge(); }
 function updateBadge() {
@@ -725,7 +975,20 @@ function updateBadge() {
   b.style.display = "flex";            // always show the LIVE badge
   b.className = "src-badge" + (hasLive ? " live" : "");   // green only when a match is live
   t.textContent = "LIVE";
+  setLiveTitle(hasLive);
 }
+// reflect live state on the OS window/taskbar title (🔴 LIVE)
+let _liveTitle = null;
+function setLiveTitle(on){
+  on = !!on;
+  const api = window.pywebview && window.pywebview.api;
+  if (!api || !api.set_live) return;     // pywebview not ready yet → don't latch; retry next tick
+  if (_liveTitle === on) return;
+  _liveTitle = on;
+  api.set_live(on);
+}
+// once pywebview's api is injected, push the current live state immediately
+window.addEventListener("pywebviewready", () => { _liveTitle = null; try { updateBadge(); } catch(e){} });
 
 async function loadAll() {
   const st = await fetch("/api/status").then(r=>r.json()).catch(()=>null);
@@ -734,7 +997,7 @@ async function loadAll() {
     if (st.venue_timezone) {
       TZ.local = st.venue_timezone;
       const b = document.getElementById("tzToggle");
-      if (b) b.title = "체크: 경기장 현지시간 / 해제: 한국시간 (개최지 기준 " + st.venue_timezone + ")";
+      if (b) b.title = tr("tzHint") + " (" + st.venue_timezone + ")";
     }
   }
   const m = await fetch("/api/matches").then(r=>r.json());
@@ -760,13 +1023,14 @@ function renderDateStrip() {
   state.matches.forEach(x => { if(!x.utcDate) return; const d=tzDateM(x); counts[d]=(counts[d]||0)+1; });
   wrap.innerHTML = state.dates.map(d => {
     const dt = new Date(d + "T00:00:00");
-    const dow = dt.toLocaleDateString("ko-KR", {weekday:"short"});
-    const mon = dt.toLocaleDateString("ko-KR", {month:"short"});
+    const dow = dt.toLocaleDateString(dloc(), {weekday:"short"});
+    const mon = dt.toLocaleDateString(dloc(), {month:"short"});
     const cls = ["chip", d===state.selectedDate?"active":"", d===todayStr()?"today":""].join(" ");
     return `<div class="${cls}" data-d="${d}" onclick="selectDate('${d}')">
+      ${d===todayStr()?`<span class="todaybadge"></span>`:""}
       <span class="dow">${dow}</span><span class="day">${dt.getDate()}</span>
-      <span class="mon">${mon}</span><span class="cnt">${counts[d]||0} 경기</span></div>`;
-  }).join("") || `<div class="empty" style="padding:20px">경기 일정이 없습니다</div>`;
+      <span class="mon">${mon}</span><span class="cnt">${tr("matches",{n:counts[d]||0})}</span></div>`;
+  }).join("") || `<div class="empty" style="padding:20px">${tr("noSchedule")}</div>`;
   const active = wrap.querySelector(".chip.active");
   if (active) active.scrollIntoView({inline:"center", block:"nearest"});
 }
@@ -818,10 +1082,10 @@ async function changeEdition(year){
   document.getElementById("tabGroup").classList.remove("active");
   document.getElementById("tabBracket").classList.remove("active");
   document.getElementById("datebar").style.display = "flex";
-  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">⚽</div>${year} 불러오는 중…</div>`;
+  document.getElementById("main").innerHTML = `<div class="empty"><img class="ld-logo-big" src="${edLogo()}">${tr("loadingYear",{y:year})}</div>`;
   const url = ed.current ? "/api/matches" : "/api/matches?year="+year;
   const m = await fetch(url).then(r=>r.json()).catch(()=>null);
-  if (!m){ document.getElementById("main").innerHTML = `<div class="empty">불러오기 실패</div>`; return; }
+  if (!m){ document.getElementById("main").innerHTML = `<div class="empty">${tr("loadFail")}</div>`; return; }
   state.matches = m.matches; setSrc(m.source); computeDates();
   const t = todayStr();
   state.selectedDate = (ed.current && state.dates.includes(t)) ? t : (state.dates[0] || null);
@@ -832,26 +1096,26 @@ async function ensureEditionSaved(year){
   try {
     const r = await fetch("/api/save-edition?year="+year, {method:"POST"}).then(r=>r.json());
     const el = document.getElementById("edSaveStatus");
-    if (el) el.textContent = r.saved ? " · 💾 저장됨" : " · 💾 저장 중…";
+    if (el) el.textContent = r.saved ? " · 💾 "+tr("saved") : " · 💾 "+tr("saving");
   } catch(e){}
 }
 function editionBanner(){
   const ed = state.editionData || {}; const q = s => encodeURIComponent(s);
   const flag = iso => iso ? `<img class="ed-flag" src="https://flagcdn.com/w40/${iso}.png" onerror="this.style.display='none'"/>` : "";
   const honors = [];
-  if (ed.champEn) honors.push(`<span class="ed-honor">🏆 우승 ${flag(ed.champIso)}<b>${ed.champEn}</b></span>`);
-  if (ed.ruEn) honors.push(`<span class="ed-honor">🥈 준우승 ${flag(ed.ruIso)}${ed.ruEn}</span>`);
+  if (ed.champEn) honors.push(`<span class="ed-honor">🏆 ${tr("champion")} ${flag(ed.champIso)}<b>${ed.champEn}</b></span>`);
+  if (ed.ruEn) honors.push(`<span class="ed-honor">🥈 ${tr("runnerUp")} ${flag(ed.ruIso)}${ed.ruEn}</span>`);
   if (ed.mvp) honors.push(`<span class="ed-honor">⭐ MVP ${flag(ed.mvpIso)}${ed.mvp} <span class="ed-mvp-c">(${ed.mvpCountry})</span></span>`);
-  if (ed.topScorer) honors.push(`<span class="ed-honor">👟 Golden Boot ${flag(ed.topScorer.iso)}${ed.topScorer.name} <span class="ed-mvp-c">(${ed.topScorer.goals}골)</span></span>`);
+  if (ed.topScorer) honors.push(`<span class="ed-honor">👟 Golden Boot ${flag(ed.topScorer.iso)}${ed.topScorer.name} <span class="ed-mvp-c">${tr("goalsN",{n:ed.topScorer.goals})}</span></span>`);
   return `<div class="ed-banner">
     <div class="ed-b-info">
-      <div class="ed-b-title">${ed.year} ${ed.hostEn||ed.host||""}${ed.score?` <span class="ed-b-score">· 결승 ${ed.score}</span>`:""}<span class="ed-save" id="edSaveStatus"></span></div>
+      <div class="ed-b-title">${ed.year} ${ed.hostEn||ed.host||""}${ed.score?` <span class="ed-b-score">· ${tr("final")} ${ed.score}</span>`:""}<span class="ed-save" id="edSaveStatus"></span></div>
       <div class="ed-b-honors">${honors.join("")}</div>
     </div>
     <div class="ed-b-vids">
-      <button class="ed-vbtn" onclick="playHighlight('${q(ed.year+' FIFA World Cup '+(ed.hostEn||'')+' opening ceremony')}')">🎬 개막식</button>
-      ${ed.champEn?`<button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final full match')}')">🏟 결승 풀경기</button>
-      <button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final highlights')}')">▶ 결승 H/L</button>`:""}
+      <button class="ed-vbtn" onclick="playHighlight('${q(ed.year+' FIFA World Cup '+(ed.hostEn||'')+' opening ceremony')}')">🎬 ${tr("opening")}</button>
+      ${ed.champEn?`<button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final full match')}')">🏟 ${tr("finalFull")}</button>
+      <button class="ed-vbtn" onclick="playHighlight('${q(ed.champEn+' vs '+ed.ruEn+' '+ed.year+' FIFA World Cup final highlights')}')">▶ ${tr("finalHl")}</button>`:""}
     </div></div>`;
 }
 
@@ -861,6 +1125,7 @@ function setView(v){
   document.getElementById("tabTime").classList.toggle("active", v==="time");
   document.getElementById("tabGroup").classList.toggle("active", v==="group");
   document.getElementById("tabBracket").classList.toggle("active", v==="bracket");
+  const ta=document.getElementById("tabAcc"); if(ta) ta.classList.toggle("active", v==="acc");
   document.getElementById("datebar").style.display = v==="time" ? "flex" : "none";
   if (v==="group" && !state.groups.length) loadStandings(); else render();
 }
@@ -882,7 +1147,7 @@ function setTz(tz){
 }
 
 async function loadStandings(){
-  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">▦</div>조별 순위 불러오는 중…</div>`;
+  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">▦</div>${tr("standingsLoading")}</div>`;
   const url = state.editionCurrent!==false ? "/api/standings" : "/api/standings?year="+state.edition;
   const s = await fetch(url).then(r=>r.json());
   state.groups = s.groups; if (s.source) setSrc(s.source); render();
@@ -892,22 +1157,35 @@ async function loadStandings(){
 const LIVE_STATUS = ["IN_PLAY","PAUSED","LIVE"];
 let livePoll = null;
 // score/status markup for a match's center cell (reused for in-place live updates)
+function liveLabel(m){
+  const d=(m.detail||"").trim(), low=d.toLowerCase();
+  if (!d) return m.clock || tr("live");
+  if (low.includes("halftime") || low==="ht") return tr("liveHT");
+  if (low.includes("penalt") || low.startsWith("pen")) return "PK";
+  if (low.includes("extra")) return m.clock ? `ET ${m.clock}` : tr("liveET");
+  return d;   // already concise broadcast text: "44'", "90'+3'", "ET 105'", etc.
+}
 function centerInner(m){
   const finished = m.status==="FINISHED";
   const live = LIVE_STATUS.includes(m.status);
   const hs = m.score.home, as = m.score.away;
-  return (finished||live)
-    ? `<span class="sc">${hs??0} <span style="color:var(--mute)">:</span> ${as??0}</span>
-       <span class="pill ${live?"live":"ft"}">${live?"LIVE":"FT"}</span>`
-    : `<span class="vs">VS</span><span class="pill ft" style="background:transparent;color:var(--mute)">예정</span>`;
+  if (!finished && !live) return `<span class="vs">VS</span>`;
+  const pill = finished ? `<span class="pill ft">FT</span>` : `<span class="pill live">${liveLabel(m)}</span>`;
+  return `<span class="sc">${hs??0} <span style="color:var(--mute)">:</span> ${as??0}</span>${pill}`;
 }
 function dayHasLive(){
   const day = state.selectedDate;
   return state.matches.some(m => m.utcDate && tzDateM(m)===day && LIVE_STATUS.includes(m.status));
 }
+// poll while the viewed day still has any non-finished match, so a kickoff (scheduled→live)
+// is reflected on screen even if nothing was live when the day was first rendered
+function dayHasUnfinished(){
+  const day = state.selectedDate;
+  return state.matches.some(m => m.utcDate && tzDateM(m)===day && m.status!=="FINISHED");
+}
 function scheduleLivePoll(){
   if (livePoll){ clearInterval(livePoll); livePoll = null; }
-  if (state.view==="time" && dayHasLive()) livePoll = setInterval(refreshLive, 30000);
+  if (state.view==="time" && dayHasUnfinished()) livePoll = setInterval(refreshLive, 30000);
 }
 async function refreshLive(){
   if (state.view!=="time"){ scheduleLivePoll(); return; }
@@ -930,7 +1208,7 @@ async function refreshLive(){
     const acc = document.getElementById("acc-"+m.id);
     if (!acc || !acc.classList.contains("open")) return;
     const r = await fetch("/api/match?id="+m.id).then(r=>r.json()).catch(()=>null);
-    if (r && r.match) acc.innerHTML = renderMatchDetail(r.match);
+    if (r && r.match){ acc.innerHTML = renderMatchDetail(r.match); loadPredict(m.id, r.match.home.name, r.match.away.name); }
   }));
   scheduleLivePoll();                          // re-arm; stops once no live match remains
 }
@@ -939,9 +1217,75 @@ async function refreshLive(){
 function render(){
   if (state.view==="group") renderGroups();
   else if (state.view==="bracket") renderBracket();
+  else if (state.view==="acc") renderAccuracy();
   else renderTime();
   scheduleLivePoll();
   updateBadge();
+}
+
+/* ---------- prediction accuracy scoreboard ---------- */
+const ACC_META = { model:{ic:"🔮"}, dk:{ic:"💰",nm:"DraftKings"}, gemini:{ic:"✨",nm:"Gemini"}, openai:{ic:"💬",nm:"ChatGPT"} };
+async function renderAccuracy(){
+  const main=document.getElementById("main");
+  main.innerHTML = `<div class="acc-page"><div class="loading"><img class="ld-logo" src="${edLogo()}"> ${tr("loading")}</div></div>`;
+  const d = await fetch("/api/accuracy").then(r=>r.json()).catch(()=>null);
+  if (state.view!=="acc") return;
+  if (!d || !d.total){ main.innerHTML = `<div class="empty"><div class="big">📊</div>${tr("accNoData")}</div>`; return; }
+  const P=d.predictors, nameOf=k=> k==="model"?tr("appPredict"):ACC_META[k].nm;
+  const board = ["model","dk","gemini","openai"].map(k=>{ const s=P[k]||{hit:0,exact:0,n:0};
+    return {k, pct:s.n?Math.round(100*s.hit/s.n):0, hit:s.hit, n:s.n,
+            ex: k==="dk"?"—":(s.n?`${s.exact}/${s.n} (${Math.round(100*s.exact/s.n)}%)`:"—")};
+  }).sort((a,b)=> (b.n?b.pct:-1)-(a.n?a.pct:-1));
+  const lb=`<table class="acc-lb"><thead><tr><th></th><th>${tr("accPredictor")}</th><th>${tr("accOutcome")}</th><th>${tr("accExact")}</th></tr></thead><tbody>${
+    board.map((r,i)=>`<tr><td class="acc-rank">${["🥇","🥈","🥉"][i]||""}</td><td class="acc-pname">${ACC_META[r.k].ic} ${nameOf(r.k)}</td><td>${r.n?`<b>${r.pct}%</b> <span class="muted">(${r.hit}/${r.n})</span>`:`<span class="muted">—</span>`}</td><td>${r.ex}</td></tr>`).join("")
+  }</tbody></table>`;
+  // per-round sections, each with a collapsible team-by-team detail table
+  const rounds = (d.rounds||[]).slice().reverse().map((g,gi)=>{   // latest round on top
+    const order = ["model","dk","gemini","openai"]
+      .filter(k=>g.predictors[k] && g.predictors[k].n)
+      .sort((a,b)=> (g.predictors[b].hit/g.predictors[b].n) - (g.predictors[a].hit/g.predictors[a].n));  // most correct first
+    const sum = order.map((k,i)=>{ const s=g.predictors[k];
+      return `<span class="accr-s${i===0?" lead":""}">${i===0?"🥇":""}${ACC_META[k].ic} ${s.hit}/${s.n}</span>`; }).join("");
+    const id=`accr-${gi}`;
+    return `<div class="accr">
+      <div class="accr-h" onclick="this.parentNode.classList.toggle('open')">
+        <span class="accr-t">${accRoundLabel(g)}</span><span class="accr-sum">${sum}</span><span class="accr-cv">▾</span>
+      </div>
+      <div class="accr-b" id="${id}">${accMatchTable(g.matches)}</div>
+    </div>`;
+  }).join("");
+  const remaining = d.aiRemaining!=null ? d.aiRemaining
+        : (Math.max(0,d.total-((P.gemini||{}).n||0))+Math.max(0,d.total-((P.openai||{}).n||0)));
+  const grade = d.grading ? `<button class="acc-grade" disabled>🤖 ${tr("accGrading")}</button>`
+        : remaining>0 ? `<button class="acc-grade" onclick="gradeAI(this)">🤖 ${tr("accGradeAI")} (${remaining})</button>`
+        : "";   // all cached → no button
+  main.innerHTML = `<div class="acc-page">
+    <div class="acc-h"><h2>📊 ${tr("tabAccuracy")}</h2><span class="sub">${tr("matches",{n:d.total})} · ${tr("finished")}</span>${grade}</div>
+    ${lb}
+    <div class="acc-note">${tr("accNote")}</div>
+    <div class="sect-title">${tr("accByRound")}</div>
+    ${rounds}
+  </div>`;
+}
+function accRoundLabel(g){ return g.stage==="GROUP_STAGE" ? tr("roundN",{n:g.round}) : stageName(g.stage); }
+function accMatchTable(matches){
+  const cols=["model","dk","gemini","openai"];
+  const head=`<tr><th>${tr("thTeam")}</th><th>${tr("predScore")}</th>${cols.map(k=>`<th>${ACC_META[k].ic}</th>`).join("")}</tr>`;
+  const body=(matches||[]).map(m=>{
+    const cells=cols.map(k=>{
+      if (m[k]===undefined) return `<td class="muted">·</td>`;
+      const ok=m[k+"_ok"];
+      const val = k==="dk" ? (m.dk==="home"?m.home:m.dk==="away"?m.away:tr("draw")) : m[k];
+      return `<td class="${ok?'ok':'no'}">${val}</td>`;
+    }).join("");
+    return `<tr><td class="acc-mt">${m.home} <span class="muted">v</span> ${m.away}</td><td class="acc-sc">${m.actual}</td>${cells}</tr>`;
+  }).join("");
+  return `<div class="acc-mtab-wrap"><table class="acc-mtab"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+async function gradeAI(btn){
+  if (btn){ btn.disabled=true; btn.textContent="🤖 "+tr("accGrading"); }
+  await fetch("/api/grade-ai",{method:"POST"}).catch(()=>{});
+  let n=0; const iv=setInterval(()=>{ if(state.view!=="acc"||++n>8){clearInterval(iv);return;} renderAccuracy(); }, 12000);
 }
 
 /* ---------- knockout bracket (final in the center) ---------- */
@@ -949,9 +1293,9 @@ function brCard(m){
   const decided = m.status==="FINISHED" || LIVE_STATUS.includes(m.status);
   const live = LIVE_STATUS.includes(m.status);
   const row = (tm, sc) => `<div class="br-team"><img src="${tm.crest||flagFb}" onerror="this.src='${flagFb}'"/>
-      <span class="br-nm">${tm.name||"미정"}</span><span class="br-sc">${decided?(sc??0):""}</span></div>`;
-  const date = m.utcDate ? new Date(tzDateM(m)+"T00:00:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}) : "";
-  const tag = live ? " · LIVE" : m.status==="FINISHED" ? " · 종료" : "";
+      <span class="br-nm">${tm.name||tr("tbd")}</span><span class="br-sc">${decided?(sc??0):""}</span></div>`;
+  const date = m.utcDate ? new Date(tzDateM(m)+"T00:00:00").toLocaleDateString(dloc(),{month:"numeric",day:"numeric"}) : "";
+  const tag = live ? " · "+tr("live") : m.status==="FINISHED" ? " · "+tr("finished") : "";
   return `<div class="br-match ${live?"islive":""}" onclick="gotoMatch(${m.id})">
     ${row(m.home, m.score.home)}${row(m.away, m.score.away)}
     <div class="br-meta">${date}${tag}</div></div>`;
@@ -961,30 +1305,30 @@ function renderBracket(){
   const byStage = s => state.matches.filter(m=>m.stage===s).sort((a,b)=>(a.id||0)-(b.id||0));
   const r32=byStage("LAST_32"), r16=byStage("LAST_16"), qf=byStage("QUARTER_FINALS"), sf=byStage("SEMI_FINALS");
   const fin=byStage("FINAL")[0], third=byStage("THIRD_PLACE")[0];
-  if (!r32.length && !r16.length && !fin){ main.innerHTML = `<div class="empty"><div class="big">🏆</div>토너먼트 대진은 조별리그 종료 후 확정됩니다</div>`; return; }
+  if (!r32.length && !r16.length && !fin){ main.innerHTML = `<div class="empty"><div class="big">🏆</div>${tr("bracketPending")}</div>`; return; }
   const half = a => { const n=Math.ceil(a.length/2); return [a.slice(0,n), a.slice(n)]; };
   const [r32L,r32R]=half(r32), [r16L,r16R]=half(r16), [qfL,qfR]=half(qf), [sfL,sfR]=half(sf);
   const col = (title,ms) => ms.length ? `<div class="br-col"><div class="br-rnd">${title}</div>${ms.map(brCard).join("")}</div>` : "";
   main.innerHTML = `<div class="bracket">
-    ${col("32강",r32L)}${col("16강",r16L)}${col("8강",qfL)}${col("4강",sfL)}
+    ${col(tr("st32"),r32L)}${col(tr("st16"),r16L)}${col(tr("stQF"),qfL)}${col(tr("stSF"),sfL)}
     <div class="br-col br-center">
-      <div class="br-rnd">🏆 결승</div>${fin?brCard(fin):`<div class="br-tbd">미정</div>`}
-      ${third?`<div class="br-rnd third">3·4위전</div>${brCard(third)}`:""}
+      <div class="br-rnd">🏆 ${tr("final")}</div>${fin?brCard(fin):`<div class="br-tbd">${tr("tbd")}</div>`}
+      ${third?`<div class="br-rnd third">${tr("thirdPlace")}</div>${brCard(third)}`:""}
     </div>
-    ${col("4강",sfR)}${col("8강",qfR)}${col("16강",r16R)}${col("32강",r32R)}
+    ${col(tr("stSF"),sfR)}${col(tr("stQF"),qfR)}${col(tr("st16"),r16R)}${col(tr("st32"),r32R)}
   </div>`;
 }
 
 function teamEl(team, side){
   const flag = team.crest || flagFb;
   const rk = team.rank ? `<span class="rk">${team.rank}</span>` : "";
-  // current edition → football-data id; past editions → look up by name
-  const click = (state.editionCurrent!==false && team.id!=null)
-    ? `onclick="event.stopPropagation(); openTeam(${team.id})"`
-    : (team.name ? `onclick="event.stopPropagation(); openTeamName('${encodeURIComponent(team.name)}')"` : "");
+  // all editions are ESPN now → always look up team detail by name
+  const click = team.name
+    ? `onclick="event.stopPropagation(); openTeamName('${encodeURIComponent(team.name)}')"`
+    : "";
   return `<div class="team ${side}" ${click}>
     <img class="flag" src="${flag}" onerror="this.src='${flagFb}'"/>
-    <span class="nm">${team.name||"미정"}</span>${rk}</div>`;
+    <span class="nm">${team.name||tr("tbd")}</span>${rk}</div>`;
 }
 
 function renderTime(){
@@ -994,17 +1338,18 @@ function renderTime(){
   const list = state.matches.filter(m => m.utcDate && tzDateM(m)===day)
                             .sort((a,b)=> (a.utcDate||"").localeCompare(b.utcDate||""));
   const banner = cur ? "" : editionBanner();
-  if (!list.length){ main.innerHTML = banner + `<div class="empty"><div class="big">📅</div>이 날짜에 경기가 없습니다</div>`; return; }
+  if (!list.length){ main.innerHTML = banner + `<div class="empty"><div class="big">📅</div>${tr("noMatchesDay")}</div>`; return; }
   const dt = day ? new Date(day+"T00:00:00") : null;
-  const head = dt ? `<div class="day-head"><h2>${dt.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"})}</h2>
-      <span class="sub">${list.length} matches</span></div>` : "";
+  const head = dt ? `<div class="day-head"><h2>${dt.toLocaleDateString(dloc(),{month:"long",day:"numeric",weekday:"long"})}</h2>
+      <span class="sub">${list.length} matches</span>
+      <button class="expand-all" id="expand-all-btn" onclick="toggleExpandAll(this)">▾ ${tr("expandAll")}</button></div>` : "";
   main.innerHTML = banner + head + `<div class="matches">` + list.map(m=>{
     const live = LIVE_STATUS.includes(m.status);
-    const stageKo = {LAST_32:"32강",LAST_16:"16강",QUARTER_FINALS:"8강",SEMI_FINALS:"4강",THIRD_PLACE:"3·4위전",FINAL:"결승"};
-    const grp = m.group ? m.group.replace(/_/g," ").replace(/group/i,"조").replace("GROUP","조") : (stageKo[m.stage]||(m.stage||"").replace(/_/g," "));
+    const started = live || m.status==="FINISHED";
+    const grp = m.group ? groupLabel((m.group.match(/[A-L]/i)||[""])[0]) : stageName(m.stage);
     return `<div class="match-wrap">
       <div class="match ${live?"islive":""}" id="m-${m.id}" onclick="toggleMatch(${m.id})">
-        <div class="kick"><div class="time">${tzTimeM(m)}</div><div class="grp">${[grp, m.venueCity].filter(Boolean).join(" · ")}</div></div>
+        <div class="kick"><div class="time">${tzTimeM(m)}</div><div class="grp">${[grp, m.venueCity].filter(Boolean).join(" · ")}</div><button class="lineup-btn${started?"":" pred"}" title="${started?tr("lineup"):tr("predLineup")}" onclick="event.stopPropagation();openLineup('${m.id}')">${started?"👥 "+tr("lineup"):"🔮 "+tr("predLineup")}</button></div>
         ${teamEl(m.home,"home")}
         <div class="center"><span class="cinner" id="cin-${m.id}">${centerInner(m)}</span></div>
         ${teamEl(m.away,"away")}
@@ -1030,23 +1375,38 @@ function renderMatchDetail(d){
   const v = d.venue || {};
   const w = d.weather || {};
   const chips = [];
-  if (v.capacity) chips.push(["수용인원", Number(v.capacity).toLocaleString()+"석"]);
-  if (v.surface) chips.push(["표면", v.surface]);
-  if (d.attendance) chips.push(["관중", Number(d.attendance).toLocaleString()]);
-  if (w.temp!=null) chips.push(["온도", Math.round(w.temp)+"°C"]);
-  if (w.humidity!=null) chips.push(["습도", w.humidity+"%"]);
+  if (w.temp!=null) chips.push([tr("temp"), Math.round(w.temp)+"°C"]);
+  if (w.humidity!=null) chips.push([tr("humidity"), w.humidity+"%"]);
+  if (w.wind!=null) chips.push([tr("wind"), Math.round(w.wind)+" km/h"]);
+  if (w.alt!=null) chips.push([tr("alt"), Math.round(w.alt)+" m"]);
+  if (d.attendance) chips.push([tr("attendance"), Number(d.attendance).toLocaleString()]);
+  if (v.capacity) chips.push([tr("capacity"), Number(v.capacity).toLocaleString()+tr("seatsUnit")]);
+  if (v.surface) chips.push([tr("surface"), v.surface]);
+  const chipsHtml = chips.map(([l,x])=>`<div class="achip"><span class="l">${l}</span><span class="v">${x}</span></div>`).join("");
+  // stadium aerial view with the info chips overlaid inside the image
   const banner = v.image
-    ? `<div class="venue-banner" style="background-image:url('${v.image}')"><div class="vb-grad"></div>
-        <div class="vb-txt"><b>${v.name||""}</b><span>${[v.city,v.country].filter(Boolean).join(", ")}</span></div></div>`
-    : (v.name ? `<div class="acc-sect">🏟 ${v.name}${v.city?` · ${v.city}`:""}</div>` : "");
-  // 1X2 betting odds (decimal), shown to the right of the info chips
+    ? `<div class="venue-banner big" style="background-image:url('${imgUrl(v.image)}')"><div class="vb-grad"></div>
+        <div class="vb-info"><div class="vb-txt"><b>${v.name||""}</b><span>${[v.city,v.country].filter(Boolean).join(", ")}</span></div>
+        ${chipsHtml?`<div class="vb-chips">${chipsHtml}</div>`:""}</div></div>`
+    : (chipsHtml || v.name
+        ? `<div class="acc-sect">${v.name?`🏟 ${v.name}${v.city?` · ${v.city}`:""}`:""}${chipsHtml?`<div class="acc-chips" style="margin-top:8px">${chipsHtml}</div>`:""}</div>`
+        : "");
+  // app's own prediction (filled async by loadPredict)
+  const predHtml = `<div class="predict" id="pred-${d.id}"><div class="pred-load">📊 ${tr("predicting")}</div></div>`;
+  // ESPN betting odds (decimal) — favorite (lowest odds) highlighted
   const o = d.odds;
-  const oddsHtml = o ? `<div class="odds">
-      <span class="odds-lbl">${o.provider||"배당"}<br>배당</span>
-      <div class="odd"><span class="k">${d.home.tla||"홈"}</span><span class="v">${o.home??"-"}</span></div>
-      <div class="odd"><span class="k">무</span><span class="v">${o.draw??"-"}</span></div>
-      <div class="odd"><span class="k">${d.away.tla||"원정"}</span><span class="v">${o.away??"-"}</span></div>
-    </div>` : "";
+  let oddsHtml = "";
+  if (o){
+    let favKey=null, favV=Infinity;
+    [["home",o.home],["draw",o.draw],["away",o.away]].forEach(([k,v])=>{ if(v!=null && v<favV){ favV=v; favKey=k; } });
+    const row=(k,label,v)=>`<span class="or-v${k===favKey?" fav":""}"><b>${label}</b> ${v??"-"}</span>`;
+    oddsHtml = `<div class="odds-ref">
+      <span class="or-lbl">💰 ${o.provider||tr("oddsRef")}</span>
+      ${row("home", d.home.name||tr("home"), o.home)}
+      ${row("draw", tr("draw"), o.draw)}
+      ${row("away", d.away.name||tr("away"), o.away)}
+    </div>`;
+  }
   // events flow left→right by kickoff minute
   const flagOf = side => (side==="home" ? d.home.crest : side==="away" ? d.away.crest : "") || flagFb;
   const parseMin = s => { const m=String(s||"").match(/(\d+)(?:\s*\+\s*(\d+))?/);
@@ -1055,7 +1415,7 @@ function renderMatchDetail(d){
   const segs = [[],[],[]];
   (d.events||[]).forEach(e => { const p=parseMin(e.minute); e._val=p.val; segs[segOf(p.base)].push(e); });
   segs.forEach(s => s.sort((a,b)=> a._val-b._val));
-  const SEGN = ["전반","후반","연장"];
+  const SEGN = [tr("firstHalf"),tr("secondHalf"),tr("extra")];
   // FIFA-official-style search titles → top YouTube result is the FIFA clip, played in-app
   const yr = state.edition || 2026;
   const matchQ = encodeURIComponent(`${d.home.name} vs ${d.away.name} ${yr} FIFA World Cup highlights`);
@@ -1065,19 +1425,21 @@ function renderMatchDetail(d){
   const evChip = e => {
     const goal = isGoalEv(e.type);
     const og = /own goal/i.test(e.type);
+    const pk = /penalt/i.test(e.type);
     const gq = encodeURIComponent(`${e.player||""} goal ${d.home.name} vs ${d.away.name} ${yr} FIFA World Cup`);
-    const attrs = goal ? ` title="골 하이라이트 재생" onclick="playHighlight('${gq}')"` : "";
+    const attrs = goal ? ` title="${tr("playGoal")}" onclick="playHighlight('${gq}')"` : "";
+    const tag = og?'<span class="og-tag">OG</span>':pk?'<span class="pk-tag">PK</span>':'';
     return `<div class="tle ${goal?"goal clk":""}"${attrs}>
-      <div class="tle-top"><img class="tle-flag" src="${flagOf(e.side)}" onerror="this.src='${flagFb}'"/><span class="tle-ic">${evIcon(e.type)}</span>${og?'<span class="og-tag">OG</span>':goal?'<span class="tle-play">▶</span>':''}</div>
+      <div class="tle-top"><img class="tle-flag" src="${flagOf(e.side)}" onerror="this.src='${flagFb}'"/><span class="tle-ic">${evIcon(e.type)}</span>${tag}${(goal&&!og&&!pk)?'<span class="tle-play">▶</span>':''}</div>
       <div class="tle-min">${e.minute}</div>
       <div class="tle-pl">${e.player||e.type}</div></div>`;
   };
   // 전반·후반은 항상, 연장은 이벤트 있을 때만 표시 (빈 구간도 여백 유지)
   const showSegs = [0, 1].concat(segs[2].length ? [2] : []);
   const evHeader = `<div class="acc-sect ev-head">
-      <span>이벤트 <span class="sect-hint">← 경기 시간 →</span></span>
+      <span>${tr("events")} <span class="sect-hint">${tr("eventsHint")}</span></span>
       <div class="hl-actions">
-        ${!finished ? `<button class="bell ${isSubMatch(d.id)?"on":""}" title="${isSubMatch(d.id)?"알림 끄기":"경기 알림 받기"}" onclick="toggleSub('match', ${d.id}, this)">🔔</button>` : ""}
+        ${!finished ? `<button class="bell ${isSubMatch(d.id)?"on":""}" title="${isSubMatch(d.id)?tr("alertOn"):tr("alertMatch")}" onclick="toggleSub('match', ${d.id}, this)">🔔</button>` : ""}
         ${started ? `<button class="hl-btn2" onclick="playHighlight('${matchQ}')">▶ Highlights</button>` : ""}
         ${started ? `<button class="hl-btn2" onclick="playHighlight('${fullQ}')">▶ Full Match</button>` : ""}
       </div></div>`;
@@ -1085,19 +1447,247 @@ function renderMatchDetail(d){
     ? `<div class="tl-h-scroll">` + showSegs.map(si => `
          <div class="tl-seg">
            <div class="tl-seg-label">${SEGN[si]}</div>
-           <div class="tl-seg-events">${segs[si].length ? segs[si].map(evChip).join("") : `<div class="tl-seg-empty">기록 없음</div>`}</div>
+           <div class="tl-seg-events">${segs[si].length ? segs[si].map(evChip).join("") : `<div class="tl-seg-empty">${tr("noRecord")}</div>`}</div>
          </div>`).join("") + `</div>`
-    : (d.espnMatched ? `<div class="acc-empty">아직 기록된 이벤트가 없습니다</div>`
-                     : `<div class="acc-empty">이 경기의 상세 정보를 찾지 못했습니다</div>`);
+    : (d.espnMatched ? `<div class="acc-empty">${tr("noEventsYet")}</div>`
+                     : `<div class="acc-empty">${tr("noMatchDetail")}</div>`);
   const evs = evHeader + evBody;
   return `<div class="acc-inner">
-    ${banner}
-    ${(chips.length||oddsHtml)?`<div class="acc-meta">
-        <div class="acc-chips">${chips.map(([l,x])=>`<div class="achip"><span class="l">${l}</span><span class="v">${x}</span></div>`).join("")}</div>
-        ${oddsHtml}
-      </div>`:""}
+    <div class="acc-top">
+      <div class="acc-venue">${banner}</div>
+      <div class="acc-pred-col">${predHtml}${oddsHtml}<div class="ai-slot"><div class="ai-pick" id="ai-gemini-${d.id}"></div><div class="ai-pick" id="ai-openai-${d.id}"></div></div></div>
+    </div>
     ${evs}
   </div>`;
+}
+
+// ---- app prediction: client-side model so the 3 factor weights are adjustable live ----
+const predCache = {};                                   // matchId -> raw pre-match stats
+const PRED_K = { host:60, homeBase:10, scale:250, db:0.20, ds:450, avg:1.30, drawClose:0.08, drawCloseScale:160, tiltScale:220, tiltCap:0.95, formK:1.5 };  // formK = pseudo-games anchoring tournament form to the pre-tournament profile (stable, less 1-game overreaction)  // avg/tiltScale/tiltCap learned on 9 past WCs (learn.py): calibrated to the real scoreline spread, not just point accuracy   // tuned on 9 past World Cups (519 matches); drawClose = extra draw weight for even matches
+const PRED_DEFAULT = { elo:6, inj:4, susp:5, home:3 };   // Strength(Elo) folds in FIFA rank + recent form + results
+function predW(){ try { return Object.assign({}, PRED_DEFAULT, JSON.parse(localStorage.getItem("wc_pred_w5")||"{}")); } catch(e){ return Object.assign({}, PRED_DEFAULT); } }
+let PRED_W = predW();
+function teamRating(s, w){
+  let R = w.elo * (((s.elo||1500) - 1500) / 8);   // Strength = FIFA rank (seeded) + recent form + tournament results
+  R -= w.inj * s.inj * 6;                       // injuries / unavailable — big impact
+  R -= w.susp * s.susp * 12;                    // suspensions (reds + 2-yellow accumulation) — big impact
+  R += (s.cal||0) * 15;                         // per-team auto-calibration (over/under-performance vs seeding)
+  return R;
+}
+function computePrediction(p, w){
+  const h=p.home, a=p.away;
+  let dr = teamRating(h,w) - teamRating(a,w) + w.home*PRED_K.homeBase + (h.host?PRED_K.host:0);
+  // minor factors: rest days (more rest = edge) and travel (more travel = fatigue)
+  if (h.mid!=null && a.mid!=null) dr += 10*Math.max(-3,Math.min(3, h.mid - a.mid));   // midfield control edge
+  if (h.rest!=null && a.rest!=null) dr += 4*Math.max(-4,Math.min(4, h.rest - a.rest));
+  if (h.travel!=null && a.travel!=null) dr -= 6*Math.max(-3,Math.min(3, (h.travel - a.travel)/1000));
+  const we = 1/(1+Math.pow(10, -dr/PRED_K.scale));
+  // draw prob: base (Gaussian) + extra boost for very even matches → picks draws in close games
+  const pd = Math.min(0.55, PRED_K.db*Math.exp(-Math.pow(dr/PRED_K.ds,2)) + PRED_K.drawClose*Math.exp(-Math.pow(dr/PRED_K.drawCloseScale,2)));
+  let home=Math.round((1-pd)*we*100), draw=Math.round(pd*100), away=100-home-draw; if(away<0) away=0;
+  // expected goals = a team's ATTACK vs the opponent's DEFENCE, with the opponent's GOALKEEPER
+  // (clean-sheet rate) damping it. Use tournament form once available, else the recent-match
+  // profile (friendlies+qualifiers), else the global mean → a leaky-but-deadly side can do 3:1.
+  // team attributes = pre-tournament profile (prior) refined by tournament results, shrinkage-blended
+  // by games played → stable early (no 1-game overreaction), converges to real form as games accrue
+  const eg=(tourn,prior,n)=> (tourn + prior*PRED_K.formK)/(n + PRED_K.formK);
+  const atkOf=(t)=> eg(t.gf||0, (t.atk!=null?t.atk:PRED_K.avg), t.played||0);
+  const dfnOf=(t)=> eg(t.ga||0, (t.dfn!=null?t.dfn:PRED_K.avg), t.played||0);
+  const gkMul=(t)=> t.gk!=null ? Math.max(0.82,Math.min(1.18,1-(t.gk-0.35)*0.5)) : 1;  // good keeper → fewer opp goals
+  const tilt=Math.max(-PRED_K.tiltCap,Math.min(PRED_K.tiltCap,dr/PRED_K.tiltScale));   // learned: clear favorites reach 2-3 goals
+  // weather: heat / humidity / wind → slightly fewer goals (affects both teams equally)
+  const wx=p.weather||{}; let damp=1;
+  if (wx.temp!=null && wx.temp>=30) damp-=0.08;
+  if (wx.humidity!=null && wx.humidity>=75) damp-=0.06;
+  if (wx.wind!=null && wx.wind>=30) damp-=0.06;
+  damp=Math.max(0.8,damp);
+  const lh=Math.max(0.2,((atkOf(h)+dfnOf(a))/2)*(1+tilt)*damp*gkMul(a));
+  const la=Math.max(0.2,((atkOf(a)+dfnOf(h))/2)*(1-tilt)*damp*gkMul(h));
+  // most likely exact scoreline = mode of independent Poisson(lh)×Poisson(la)
+  const pois=(k,l)=>{ let f=1; for(let i=2;i<=k;i++) f*=i; return Math.exp(-l)*Math.pow(l,k)/f; };
+  let best=-1, sH=1, sA=1; const EPS=1e-9;
+  // mode of the joint Poisson; on a near-tie prefer the higher-scoring line (λ=2 ties P(1)=P(2))
+  for(let i=0;i<=6;i++) for(let j=0;j<=6;j++){ const pr=pois(i,lh)*pois(j,la);
+    if(pr>best+EPS || (pr>best-EPS && (i+j)>(sH+sA))){ best=Math.max(best,pr); sH=i; sA=j; } }
+  return {home, draw, away, scoreH:sH, scoreA:sA};
+}
+// ---- real LLM picks: ask Gemini / ChatGPT live (via the backend) for a prediction ----
+const AI_META = {
+  gemini: { label:"Gemini",  icon:"✨", keyName:"gemini_api_key" },
+  openai: { label:"ChatGPT", icon:"💬", keyName:"openai_api_key" },
+};
+const aiCache = {};   // `${provider}-${matchId}` -> result
+async function loadAiPick(id, provider){
+  const slot = document.getElementById(`ai-${provider}-${id}`);
+  if (!slot) return;
+  const m = AI_META[provider];
+  slot.innerHTML = `<div class="cp-head">${m.icon} ${m.label}</div><div class="cp-load">🤔 ${tr("predicting")}</div>`;
+  const ck = provider+"-"+id;
+  let res = aiCache[ck];
+  if (!res){ res = await fetch(`/api/aipick?id=${id}&p=${provider}`).then(r=>r.json()).catch(()=>null); if (res) aiCache[ck]=res; }
+  if (document.getElementById(`ai-${provider}-${id}`)) slot.innerHTML = aiPickHtmlOf(id, provider, res);
+}
+function aiPickHtmlOf(id, provider, res){
+  const m = AI_META[provider];
+  const head = `${m.icon} ${m.label}`;
+  if (!res || !res.available){
+    const r = res && res.reason;
+    const why = r==="no_key" ? tr("aiNoKey",{k:m.keyName})
+              : r==="http_429" ? tr("aiQuota")
+              : tr("aiFail");
+    return `<div class="cp-head">${head}</div><div class="cp-reason muted">${why}</div>`;
+  }
+  const hN = res.home||tr("home"), aN = res.away||tr("away");
+  const hWin = res.scoreHome>res.scoreAway, aWin = res.scoreAway>res.scoreHome;   // bold the winner
+  let differ = "";
+  const p = predCache[id];
+  if (p && p.available){
+    const c = computePrediction(p, PRED_W);
+    const mp = (c.home>=c.draw && c.home>=c.away) ? "home" : (c.away>=c.draw ? "away" : "draw");
+    if (res.winner!==mp) differ = `<span class="cp-diff">⚡ ${tr("cDiffer")}</span>`;
+  }
+  return `<div class="cp-head">${head}${differ}</div>
+    <div class="cp-main"><span class="cp-t${hWin?" w":""}">${hN}</span><span class="cp-score">${res.scoreHome} : ${res.scoreAway}</span><span class="cp-t${aWin?" w":""}">${aN}</span></div>
+    <div class="cp-conf" title="${tr("cConfHint")}">${tr("cConfLbl")} ${res.confidence}%</div>
+    <div class="cp-reason">${res.reason||""}</div>`;
+}
+function predFactors(name, x){
+  // 3 lines: ① FIFA (rank·Elo·form)  ② ratings (ATT·MID·DEF·GK)  ③ other (inj·cards·rest·travel·cal)
+  const l1 = [], l2 = [], l3 = [];
+  if (x.rank) l1.push("FIFA #"+x.rank);
+  if (x.elo) l1.push("⚡"+x.elo);                  // results-based strength (Elo)
+  if (x.played>0) l1.push(tr("factorForm")+" "+x.points+"pt "+(x.gd>=0?"+":"")+x.gd);
+  if (x.atk!=null) l2.push("⚔ATT "+x.atk.toFixed(1));             // attack (goals/game)
+  if (x.mid!=null) l2.push("🎯MID "+(x.mid>=0?"+":"")+x.mid.toFixed(1));  // midfield control (goal margin/game)
+  if (x.dfn!=null) l2.push("🛡DEF "+x.dfn.toFixed(1));            // defense (conceded/game, lower better)
+  if (x.gk!=null) l2.push("🧤GK "+Math.round(x.gk*100)+"%");      // goalkeeper (clean-sheet rate)
+  if (x.inj) l3.push("🩹"+x.inj);
+  if (x.susp) l3.push("🚫"+x.susp);                // suspended (reds + 2-yellow accumulation)
+  if (x.rest!=null) l3.push("🛌"+x.rest+"d");                // rest days since last match
+  if (x.travel!=null && x.travel>0) l3.push("✈"+x.travel.toLocaleString()+"km");   // travel distance
+  if (x.cal) l3.push((x.cal>0?"📈+":"📉")+x.cal);            // auto-calibration vs seeding
+  const body = [l1, l2, l3].filter(a=>a.length).map(a=>a.join(" · ")).join("<br>") || "–";
+  return `<div class="pf"><span class="pf-nm">${name}</span><span class="pf-b">${body}</span></div>`;
+}
+function predHtmlOf(p){
+  if (!p || !p.available) return "";
+  const hN=p.home.name, aN=p.away.name, c=computePrediction(p, PRED_W);
+  const seg = (cls,v) => `<span class="pb ${cls}" style="width:${v}%"></span>`;
+  const slider = (label,k,step) => `<label class="pw"><span>${label}</span><input type="range" min="0" max="10" step="${step||1}" value="${PRED_W[k]}" oninput="setPredW('${k}',this.value)"><b class="pw-v">${PRED_W[k]}</b></label>`;
+  return `<div class="pred-head"><span>🔮 ${tr("appPredict")}</span><span class="pred-score">${tr("predScore")} <b>${c.scoreH} : ${c.scoreA}</b></span></div>
+    <div class="pred-bar slim">${seg("h",c.home)}${seg("d",c.draw)}${seg("a",c.away)}</div>
+    <div class="pred-row"><span class="lh">${hN} <b>${c.home}%</b></span><span class="ld">${tr("draw")} <b>${c.draw}%</b></span><span class="la">${aN} <b>${c.away}%</b></span></div>
+    <div class="pred-factors">${predFactors(hN,p.home)}${predFactors(aN,p.away)}</div>
+    <div class="pred-weights">${slider(tr("strength"),"elo")}${slider(tr("factorInj"),"inj")}${slider(tr("factorCards"),"susp")}${slider(tr("factorHome"),"home",0.5)}<button class="pw-reset icon-only" title="${tr("reset")}" aria-label="${tr("reset")}" onclick="resetPredW()">↺</button></div>
+    <div class="pred-note">${tr("predNote")}</div>`;
+}
+function rerenderPredictions(){
+  for (const id in predCache){ const el=document.getElementById("pred-"+id); if (el) el.innerHTML = predHtmlOf(predCache[id]);
+    ["gemini","openai"].forEach(pv=>{ const s=document.getElementById(`ai-${pv}-${id}`); const r=aiCache[pv+"-"+id];
+      if (s && r) s.innerHTML = aiPickHtmlOf(id, pv, r); }); }
+}
+function resetPredW(){
+  PRED_W = Object.assign({}, PRED_DEFAULT);
+  localStorage.removeItem("wc_pred_w5");
+  rerenderPredictions();
+}
+function setPredW(key, val){
+  PRED_W[key] = +val;
+  localStorage.setItem("wc_pred_w5", JSON.stringify(PRED_W));
+  rerenderPredictions();
+}
+// ---- actual lineup side panel ----
+function lpCards(p){ return (p.r?`<span class="cd r">🟥${p.r>1?p.r:""}</span>`:"")+(p.y?`<span class="cd y">🟨${p.y>1?p.y:""}</span>`:""); }
+function lpRow(p){
+  return `<div class="lp-row"><span class="lp-num">${p.num??""}</span><span class="lp-pos">${p.pos||""}</span><span class="lp-nm">${p.name||""}</span>`
+    + `${p.subOut?'<span class="lp-x out" title="off">▼</span>':""}${p.subIn?'<span class="lp-x in" title="on">▲</span>':""}${lpCards(p)}</div>`;
+}
+// place a starter on the pitch by position abbreviation (G/RB/CD-L/DM/CM-R/F…)
+function lpRowOf(p){ p=(p||"").toUpperCase();
+  if (p==="G"||p==="GK") return 0;
+  if (/^F|ST|CF|^W$|WG/.test(p)) return 4;     // forwards
+  if (/^DM/.test(p)) return 2;                 // holding mid
+  if (/M/.test(p)) return 3;                   // midfield (CM/RM/LM/AM)
+  return 1;                                    // defenders
+}
+function lpSide(p){ p=(p||"").toUpperCase(); return p.includes("L")?-1:p.includes("R")?1:0; }
+function lpToken(p){
+  const sn=(p.name||"").split(" ").pop();
+  const av=p.photo ? `<img src="${imgUrl(p.photo)}" onerror="this.outerHTML='<span class=&quot;pp-av&quot;>${initials(p.name)}</span>'"/>` : `<span class="pp-av">${initials(p.name)}</span>`;
+  const cd=(p.r||p.y)?`<span class="pp-cd">${p.r?"🟥":""}${p.y?"🟨"+(p.y>1?p.y:""):""}</span>`:"";
+  return `<div class="pp">${av}<span class="pp-nm">${p.num?p.num+" ":""}${sn}</span><span class="pp-pos">${p.pos||""}</span>${cd}</div>`;
+}
+// vertical depth from a position abbreviation (0 GK … 5 forward) — used to lay out the formation
+function lpDepth(pos){
+  const p=(pos||"").toUpperCase();
+  if (p==="G"||p==="GK") return 0;
+  if (/^(CD|CB|RWB|LWB|WB|RB|LB|D)/.test(p)) return 1;   // defenders (incl. full/wing-backs)
+  if (/^DM/.test(p)) return 2;                            // holding mid
+  if (/^(CM|RM|LM|M)/.test(p)) return 3;                  // central / wide mid
+  if (/^(AM|CAM|SS)/.test(p)) return 4;                   // attacking mid
+  if (/^CF/.test(p)) return 4.5;                          // second striker line (e.g. 3-4-2-1)
+  if (/^(ST|LW|RW|W|F)/.test(p)) return 5;                // forward
+  return 3;
+}
+function lpPitch(xi, formation){
+  // sort by depth, then slice into the rows the formation string dictates (e.g. "3-4-2-1")
+  const lines = (formation||"").split("-").map(n=>parseInt(n,10)).filter(n=>n>0);
+  let rows;
+  if (lines.length>=2 && xi.length>=2){
+    const sorted = xi.slice().sort((a,b)=>lpDepth(a.pos)-lpDepth(b.pos));   // GK → defense → attack
+    rows=[sorted.slice(0,1)]; let idx=1;                                    // GK row
+    for (const sz of lines){ rows.push(sorted.slice(idx, idx+sz)); idx+=sz; }
+    if (idx<sorted.length) rows[rows.length-1]=rows[rows.length-1].concat(sorted.slice(idx));
+  } else {
+    rows=[[],[],[],[],[],[]]; xi.forEach(p=>rows[Math.round(lpDepth(p.pos))].push(p));
+  }
+  rows.forEach(r=>r.sort((a,b)=>lpSide(a.pos)-lpSide(b.pos)));
+  return `<div class="pitch">${rows.slice().reverse().map(r=>r.length?`<div class="pitch-row">${r.map(lpToken).join("")}</div>`:"").join("")}</div>`;
+}
+function lpCol(t){
+  if (!t) return "";
+  const xi=(t.players||[]).filter(p=>p.starter), bench=(t.players||[]).filter(p=>!p.starter);
+  bench.sort((a,b)=>(b.subIn?1:0)-(a.subIn?1:0));
+  return `<div class="lp-col">
+    <div class="lp-team">${t.team||""}${t.formation?` <span class="lp-form">${t.formation}</span>`:""}</div>
+    ${xi.length?lpPitch(xi, t.formation):`<div class="lp-empty">${tr("noMatchDetail")}</div>`}
+    ${bench.length?`<div class="lp-sect">${tr("subs")}</div>${bench.map(lpRow).join("")}`:""}
+    ${(t.out&&t.out.length)?`<div class="lp-sect">🩹 ${tr("lineupOut")}</div>${t.out.map(o=>`<div class="lp-row"><span class="lp-ic">${o.reason==="susp"?"🚫":"🩹"}</span><span class="lp-nm">${o.name||""}</span><span class="lp-x out">${o.reason==="susp"?tr("suspended"):trStatus(o.status)}</span></div>`).join("")}`:""}
+  </div>`;
+}
+async function openLineup(id){
+  const ov=document.getElementById("lineupOverlay"), panel=document.getElementById("lineupPanel");
+  ov.classList.add("open");
+  panel.innerHTML = `<div class="lp-mh"><button class="close" onclick="closeLineup()">✕</button><div class="lp-head">👥 ${tr("lineup")}</div></div><div class="lp-body"><div class="lp-load"><img class="ld-logo" src="${edLogo()}"> ${tr("lineup")}…</div></div>`;
+  renderLineup(id, 0);
+}
+async function renderLineup(id, attempt){
+  const ov=document.getElementById("lineupOverlay"), panel=document.getElementById("lineupPanel");
+  const l = await fetch("/api/lineup?id="+id).then(r=>r.json()).catch(()=>null);
+  if (!ov.classList.contains("open")) return;
+  const pred = l && l.predicted;
+  const head = pred ? `🔮 ${tr("predLineup")} <span class="lp-pred-note">${tr("predLineupNote")}</span>` : `👥 ${tr("lineup")}`;
+  panel.innerHTML = `<div class="lp-mh"><button class="close" onclick="closeLineup()">✕</button><div class="lp-head">${head}</div></div>`
+    + `<div class="lp-body">${(l && l.available) ? `<div class="lp-cols">${lpCol(l.home)}${lpCol(l.away)}</div>` : `<div class="lp-empty">${tr("noMatchDetail")}</div>`}</div>`;
+  // photos resolve in the background — re-render a couple of times to fill missing ones in
+  if (l && l.available && attempt < 3){
+    const ps = [...(l.home&&l.home.players||[]), ...(l.away&&l.away.players||[])];
+    if (ps.some(p=>p.starter && !p.photo))
+      setTimeout(()=>{ if (ov.classList.contains("open")) renderLineup(id, attempt+1); }, 3500);
+  }
+}
+function closeLineup(){ document.getElementById("lineupOverlay").classList.remove("open"); }
+
+async function loadPredict(id){
+  if (!document.getElementById("pred-"+id)) return;
+  let p = predCache[id];
+  if (!p){ p = await fetch("/api/predict?id="+id).then(r=>r.json()).catch(()=>null); if (p) predCache[id]=p; }
+  const el = document.getElementById("pred-"+id);
+  if (!el) return;
+  const html = predHtmlOf(p);
+  if (html) el.innerHTML = html; else el.style.display = "none";
+  loadAiPick(id, "gemini");
+  loadAiPick(id, "openai");
 }
 
 // highlight: resolve the exact FIFA goal/match video, then open its YouTube watch page
@@ -1109,19 +1699,20 @@ async function playHighlight(encQuery){
   const url = vid ? `https://www.youtube.com/watch?v=${vid}`
                   : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
   const api = window.pywebview && window.pywebview.api;
-  if (api && api.open_highlight) api.open_highlight(url, "하이라이트");
+  if (api && api.open_highlight) api.open_highlight(url, tr("highlight"));
   else window.open(url, "_blank");
 }
 
 async function openAcc(id){
   const acc = document.getElementById("acc-"+id), chev = document.getElementById("chev-"+id);
   if (!acc || acc.classList.contains("open")) return;   // already open / missing
-  acc.innerHTML = `<div class="acc-load"><span>⚽ 경기 정보 불러오는 중…</span></div>`;
+  acc.innerHTML = `<div class="acc-load"><span><img class="ld-logo" src="${edLogo()}"> ${tr("matchLoading")}</span></div>`;
   acc.classList.add("open");
   if (chev) chev.classList.add("up");
   const res = await fetch("/api/match?id="+id).then(r=>r.json()).catch(()=>null);
   const d = res && res.match;
-  acc.innerHTML = d ? renderMatchDetail(d) : `<div class="acc-empty">정보를 불러올 수 없습니다</div>`;
+  acc.innerHTML = d ? renderMatchDetail(d) : `<div class="acc-empty">${tr("matchFail")}</div>`;
+  if (d) loadPredict(id, d.home.name, d.away.name);
 }
 function closeAcc(id){
   const acc = document.getElementById("acc-"+id), chev = document.getElementById("chev-"+id);
@@ -1132,15 +1723,22 @@ function toggleMatch(id){
   const acc = document.getElementById("acc-"+id);
   if (acc && acc.classList.contains("open")) closeAcc(id); else openAcc(id);
 }
+// expand / collapse every match card on the current day at once
+function toggleExpandAll(btn){
+  const accs = Array.from(document.querySelectorAll(".matches .acc"));
+  const anyClosed = accs.some(a => !a.classList.contains("open"));
+  accs.forEach(a => { const id = a.id.replace("acc-",""); if (anyClosed) openAcc(id); else closeAcc(id); });
+  if (btn) btn.innerHTML = (anyClosed ? "▴ " : "▾ ") + tr(anyClosed ? "collapseAll" : "expandAll");
+}
 
 function renderGroups(){
   const main = document.getElementById("main");
-  if (!state.groups.length){ main.innerHTML = `<div class="empty"><div class="big">▦</div>조별 순위 데이터가 없습니다</div>`; return; }
+  if (!state.groups.length){ main.innerHTML = `<div class="empty"><div class="big">▦</div>${tr("noStandings")}</div>`; return; }
   main.innerHTML = `<div class="groups">` + state.groups.map(g=>{
     const letter = (g.group||"").replace(/group/i,"").trim().slice(-1).toUpperCase() || "·";
     const rows = (g.table||[]).map((r,i)=>`<tr class="${i<2?"qual":""}">
       <td class="pos">${r.position??i+1}</td>
-      <td class="team-col"><div class="gteam" onclick="openTeam(${r.team.id})">
+      <td class="team-col"><div class="gteam" onclick="openTeamName('${encodeURIComponent(r.team.name)}')">
         <img src="${r.team.crest||flagFb}" onerror="this.src='${flagFb}'"/>
         <span class="gnm">${r.team.name}</span>${r.team.rank?`<span class="rk">${r.team.rank}</span>`:""}</div></td>
       <td>${r.playedGames??0}</td><td>${r.won??0}</td><td>${r.draw??0}</td><td>${r.lost??0}</td>
@@ -1148,7 +1746,7 @@ function renderGroups(){
       <td class="pts">${r.points??0}</td></tr>`).join("");
     return `<div class="gcard"><div class="gh"><span class="badge">${letter}</span><h3>${(g.group||"GROUP").toUpperCase()}</h3></div>
       <table class="stand"><thead><tr>
-        <th>#</th><th class="team-col">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th>
+        <th>#</th><th class="team-col">${tr("thTeam")}</th><th>${tr("thP")}</th><th>${tr("thW")}</th><th>${tr("thD")}</th><th>${tr("thL")}</th><th>${tr("thGD")}</th><th>${tr("thPts")}</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join("") + `</div>`;
 }
@@ -1166,37 +1764,59 @@ function toggleSub(kind, id, btn){
   const on = s.includes(id);
   s = on ? s.filter(x=>x!==id) : (s.push(id), s);
   _lsSet(key, s);
-  if (btn){ const now = s.includes(id); btn.classList.toggle("on", now); btn.title = now?"알림 끄기":"알림 받기"; }
+  if (btn){ const now = s.includes(id); btn.classList.toggle("on", now); btn.title = now?tr("alertOn"):tr("alertOff"); }
   startSubMonitor();
   return s.includes(id);
 }
-function notify(title, body){
+function notify(title, body, image){
   const api = window.pywebview && window.pywebview.api;
-  if (api && api.notify) api.notify(title, body);
-  else if (window.Notification && Notification.permission==="granted") new Notification(title,{body});
+  if (api && api.notify) api.notify(title, body, image||"");
+  else if (window.Notification && Notification.permission==="granted") new Notification(title,{body, icon: image||undefined});
 }
 let subTimer = null, subSnap = {};
 function startSubMonitor(){
   if (subTimer){ clearInterval(subTimer); subTimer = null; }
-  if (subTeams().length || subMatches().length) subTimer = setInterval(checkSubs, 60000);
+  subTimer = setInterval(checkSubs, 60000);   // always on — notify for every live match
+  checkSubs();                                 // prime the snapshot now (no notify on first pass)
+}
+// who scored: latest goal event on the side whose score went up (from match detail),
+// plus the scorer's photo (TheSportsDB → Wikipedia, via /api/playerclub) for the toast
+async function goalInfo(id, side){
+  try {
+    const d = await fetch("/api/match?id="+id,{cache:"no-store"}).then(r=>r.json());
+    const goals = (((d||{}).match||{}).events || []).filter(e => isGoalEv(e.type));
+    // the just-scored goal: latest on the scoring side, else the latest goal overall
+    const g = [...goals].reverse().find(e => !side || e.side===side) || goals[goals.length-1];
+    if (!g) return {who:"", photo:""};
+    let photo = "";
+    if (g.player){
+      const pc = await fetch("/api/playerclub?name="+encodeURIComponent(g.player)).then(r=>r.json()).catch(()=>null);
+      photo = (pc && pc.photo) || "";
+    }
+    return { who: [g.player, g.minute].filter(Boolean).join(" "), photo };
+  } catch { return {who:"", photo:""}; }
 }
 async function checkSubs(){
-  const sm = subMatches(), st = subTeams();
-  if (!sm.length && !st.length) return;
+  // notify for ALL matches automatically (no subscription needed): kickoff, goals, full-time
   const data = await fetch("/api/matches",{cache:"no-store"}).then(r=>r.json()).catch(()=>null);
   if (!data) return;
-  data.matches.filter(m => sm.includes(String(m.id)) || st.includes(String(m.home.id)) || st.includes(String(m.away.id)))
-    .forEach(m => {
-      const cur = { st: m.status, h: m.score.home, a: m.score.away };
-      const prev = subSnap[m.id];
-      const label = `${m.home.name} ${cur.h??0} : ${cur.a??0} ${m.away.name}`;
-      if (prev){
-        if (!LIVE_STATUS.includes(prev.st) && LIVE_STATUS.includes(cur.st)) notify("⚽ 경기 시작", `${m.home.name} vs ${m.away.name}`);
-        else if (LIVE_STATUS.includes(cur.st) && (cur.h!==prev.h || cur.a!==prev.a)) notify("⚽ 골!", label);
-        else if (prev.st!=="FINISHED" && cur.st==="FINISHED") notify("경기 종료", label);
-      }
-      subSnap[m.id] = cur;
-    });
+  data.matches.forEach(async m => {
+    const cur = { st: m.status, h: m.score.home, a: m.score.away };
+    const prev = subSnap[m.id];
+    subSnap[m.id] = cur;                       // snapshot first (avoid re-firing across the await)
+    if (!prev) return;
+    const label = `${m.home.name} ${cur.h??0} : ${cur.a??0} ${m.away.name}`;
+    if (!LIVE_STATUS.includes(prev.st) && LIVE_STATUS.includes(cur.st)) {
+      notify(tr("notifKickoff"), `${m.home.name} vs ${m.away.name}`);
+    } else if (LIVE_STATUS.includes(cur.st) && (cur.h!==prev.h || cur.a!==prev.a)) {
+      const side = (cur.h??0) > (prev.h??0) ? "home" : "away";
+      const gi = await goalInfo(m.id, side);
+      notify(gi.who ? tr("notifGoalBy",{who:gi.who}) : tr("notifGoal"), label, gi.photo);   // scorer photo as the toast image
+    } else if (prev.st!=="FINISHED" && cur.st==="FINISHED") {
+      notify(tr("notifFT"), label);
+    }
+  });
+  setLiveTitle(data.matches.some(m => LIVE_STATUS.includes(m.status)));   // keep window/taskbar title in sync
 }
 
 /* ---------- navigate to a match (from a team's schedule) ---------- */
@@ -1209,6 +1829,7 @@ function gotoMatch(id){
     state.view = "time";
     document.getElementById("tabTime").classList.add("active");
     document.getElementById("tabGroup").classList.remove("active");
+    document.getElementById("tabBracket").classList.remove("active");   // also clear bracket tab
     document.getElementById("datebar").style.display = "flex";
   }
   renderDateStrip(); renderTime();
@@ -1222,7 +1843,7 @@ async function openTeam(id){ if (id) openTeamUrl("/api/team?id="+id); }
 async function openTeamName(encName){ if (encName) openTeamUrl("/api/team?name="+encName+"&year="+state.edition); }
 async function openTeamUrl(url){
   const ov = document.getElementById("overlay"), modal = document.getElementById("modal");
-  modal.innerHTML = `<div class="loading">⚽ 팀 정보 불러오는 중…</div>`;
+  modal.innerHTML = `<div class="loading"><img class="ld-logo" src="${edLogo()}"> ${tr("teamLoading")}</div>`;
   ov.classList.add("open");
   const ctrl = new AbortController();
   const to = setTimeout(()=>ctrl.abort(), 15000);
@@ -1230,33 +1851,42 @@ async function openTeamUrl(url){
   try { res = await fetch(url, {signal: ctrl.signal}).then(r=>r.json()); } catch(e){}
   clearTimeout(to);
   const t = res && res.team;
-  if (!t){ modal.innerHTML = `<div class="loading">팀 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.<br><br><button class="close" style="position:static" onclick="closeTeam()">닫기</button></div>`; return; }
+  if (!t){ modal.innerHTML = `<div class="loading">${tr("teamFail")}<br><br><button class="close" style="position:static" onclick="closeTeam()">${tr("close")}</button></div>`; return; }
   const flag = t.crest || (t.area && t.area.flag) || flagFb;
   const inf = t.info || {};
   currentTeamName = t.name || "";
-  const nf = n => new Intl.NumberFormat("ko", {notation:"compact", maximumFractionDigits:1}).format(n);
+  currentTeamFlag = flag || "";
+  const nf = n => new Intl.NumberFormat(LANG, {notation:"compact", maximumFractionDigits:1}).format(n);
   const coachName = (t.coach && t.coach.name && t.coach.name!=="—") ? t.coach.name : "";
   // country meta line (shown in header, beside the flag)
   const cm = [];
-  if (CONTINENT[t.name]) cm.push(`대륙 <b>${CONTINENT[t.name]}</b>`);
-  if (inf.capital) cm.push(`수도 <b>${inf.capital}${inf.capitalEn?` (${inf.capitalEn})`:""}</b>`);
-  if (inf.population) cm.push(`인구 <b>${nf(inf.population)}명</b>`);
-  if (inf.area) cm.push(`면적 <b>${nf(inf.area)}㎢</b>`);
-  if (t.founded) cm.push(`협회창설 <b>${t.founded}</b>`);
+  if (contName(t.name)) cm.push(`${tr("continent")} <b>${contName(t.name)}</b>`);
+  if (inf.capital) cm.push(`${tr("capital")} <b>${inf.capital}${inf.capitalEn?` (${inf.capitalEn})`:""}</b>`);
+  if (inf.population) cm.push(`${tr("population")} <b>${nf(inf.population)}${tr("popUnit")}</b>`);
+  if (inf.area) cm.push(`${tr("area")} <b>${nf(inf.area)}㎢</b>`);
+  if (t.founded) cm.push(`${tr("founded")} <b>${t.founded}</b>`);
+  // line 2: model metrics (Strength + Calibration)
+  const cm2 = [];
+  if (t.elo) cm2.push(`${tr("strength")} <b>⚡${t.elo}</b>`);   // results-based team strength (Elo)
+  if (t.cal) cm2.push(`${tr("calibration")} <b>${t.cal>0?"📈 +":"📉 "}${t.cal}</b>`);   // over/under-performance vs seeding
+  // line 3: star players
+  const starsHtml = (t.scorers && t.scorers.length)
+    ? `<div class="cmeta stars">${tr("keyPlayers")}: ${t.scorers.map(s=>`⭐ <b>${s.name}</b> ${s.goals}⚽`).join("&nbsp;&nbsp; ")}</div>` : "";
   const cmeta = cm.join("<span class='dot'>·</span>");
+  const cmeta2 = cm2.join("<span class='dot'>·</span>");
   // World Cup history as a table (years for podium finishes)
-  const yrs = a => a && a.length ? `${a.length}회 <span class="wc-yr">(${a.join(", ")})</span>` : null;
+  const yrs = a => a && a.length ? `${tr("timesN",{n:a.length})} <span class="wc-yr">(${a.join(", ")})</span>` : null;
   const wcRows = [];
-  if (inf.wcApps!=null) wcRows.push(["본선 출전", inf.wcApps+"회"]);
-  if (inf.champions) wcRows.push(["🏆 우승", yrs(inf.champions)]);
-  if (inf.runnerUp) wcRows.push(["🥈 준우승", yrs(inf.runnerUp)]);
-  if (inf.third) wcRows.push(["🥉 3위", yrs(inf.third)]);
+  if (inf.wcApps!=null) wcRows.push([tr("apps"), tr("appsN",{n:inf.wcApps})]);
+  if (inf.champions) wcRows.push(["🏆 "+tr("champion"), yrs(inf.champions)]);
+  if (inf.runnerUp) wcRows.push(["🥈 "+tr("runnerUp"), yrs(inf.runnerUp)]);
+  if (inf.third) wcRows.push(["🥉 "+tr("third"), yrs(inf.third)]);
   const podium = inf.champions || inf.runnerUp || inf.third;
-  if (inf.wcBest) wcRows.push([podium ? "그 외" : "최고 성적", inf.wcBest]);
+  if (inf.wcBest) wcRows.push([podium ? tr("other") : tr("bestResult"), trResult(inf.wcBest)]);
   const wcTable = wcRows.length
     ? `<table class="wc-table">${wcRows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>` : "";
   // schedule (this team's fixtures, from the loaded match list)
-  const fxDate = m => new Date(tzDateM(m)+"T00:00:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric",weekday:"short"});
+  const fxDate = m => new Date(tzDateM(m)+"T00:00:00").toLocaleDateString(dloc(),{month:"numeric",day:"numeric",weekday:"short"});
   const fixtures = state.matches.filter(m => m.home.name===t.name || m.away.name===t.name)
                                 .sort((a,b)=> (a.utcDate||"").localeCompare(b.utcDate||""));
   const fxHtml = fixtures.map(m => {
@@ -1264,7 +1894,7 @@ async function openTeamUrl(url){
     const opp = homeSide ? m.away : m.home;
     const fin = m.status==="FINISHED", live = LIVE_STATUS.includes(m.status);
     const res = (fin||live) ? `${m.score.home??0} : ${m.score.away??0}` : tzTimeM(m);
-    const tag = live ? `<span class="pill live">LIVE</span>` : fin ? `<span class="pill ft">FT</span>` : `<span class="fx-sch">예정</span>`;
+    const tag = live ? `` : fin ? `<span class="pill ft">FT</span>` : `<span class="fx-sch">${tr("upcoming")}</span>`;
     return `<div class="fx" onclick="gotoMatch(${m.id})">
       <span class="fx-date">${fxDate(m)}</span>
       <span class="fx-side">${homeSide?"vs":"@"}</span>
@@ -1281,38 +1911,39 @@ async function openTeamUrl(url){
   const aged = (t.squad||[]).map(p=>({k:ageKey(p), a:(p.age!=null?p.age:age(p.dateOfBirth))})).filter(x=>x.a!=null&&x.a!=="").sort((x,y)=>x.a-y.a);
   const youngSet = new Set(aged.slice(0,3).map(x=>x.k)), oldSet = new Set(aged.slice(-3).map(x=>x.k));
   const squadHtml = order.filter(k=>grouped[k]).map(k=>`<div class="squad-grp">
-      <div class="pos">${POS_KO[k]||k} · ${grouped[k].length}</div>
+      <div class="pos">${posName(k)} · ${grouped[k].length}</div>
       <ul>${grouped[k].slice().sort((a,b)=>(parseInt(a.number)||999)-(parseInt(b.number)||999)).map(p=>{
         const a=(p.age!=null)?p.age:age(p.dateOfBirth);
-        const av=p.photo?`<img class="pphoto" src="${p.photo}" onerror="this.outerHTML='<span class=&quot;avatar&quot; style=&quot;background:${posColor(k)}&quot;>${initials(p.name)}</span>'"/>`:`<span class="avatar" style="background:${posColor(k)}">${initials(p.name)}</span>`;
+        const av=p.photo?`<img class="pphoto" style="${flagBg(flag)}" src="${imgUrl(p.photo)}" onerror="this.outerHTML='<span class=&quot;avatar&quot; style=&quot;background:${posColor(k)}&quot;>${initials(p.name)}</span>'"/>`:`<span class="avatar" style="background:${posColor(k)}">${initials(p.name)}</span>`;
         const num=(p.number!=null)?`<span class="pnum">${p.number}</span>`:`<span class="pnum"></span>`;
         const clk=p.id!=null?`class="player clk${p.available===false?" out":""}" onclick="openPlayer('${p.id}')"`:`class="player${p.available===false?" out":""}"`;
         const key=ageKey(p);
-        const badge=p.available===false?`<span class="agebadge unavail">${p.statusText||"출전불가"}</span>`:youngSet.has(key)?`<span class="agebadge young">최연소</span>`:oldSet.has(key)?`<span class="agebadge old">최고령</span>`:"";
-        return `<li ${clk}>${av}${num}<span class="pn">${p.name}</span><span class="pmeta">${badge}${(a!=null&&a!=="")?a+"세":""}</span></li>`;
+        const badge=p.available===false?`<span class="agebadge unavail">${trStatus(p.statusText)}</span>`:youngSet.has(key)?`<span class="agebadge young">${tr("youngest")}</span>`:oldSet.has(key)?`<span class="agebadge old">${tr("oldest")}</span>`:"";
+        const cd=(p.rc||p.yc)?`<span class="sq-cd">${p.rc?"🟥"+(p.rc>1?p.rc:""):""}${p.yc?"🟨"+(p.yc>1?p.yc:""):""}</span>`:"";
+        return `<li ${clk}>${av}${num}<span class="pn">${p.name}</span>${cd}<span class="pmeta">${badge}${(a!=null&&a!=="")?tr("ageN",{n:a}):""}</span></li>`;
       }).join("")}</ul></div>`).join("");
   // coach as the first entry of the squad column
-  const coachHtml = coachName ? `<div class="squad-grp"><div class="pos">감독</div><ul>
+  const coachHtml = coachName ? `<div class="squad-grp"><div class="pos">${tr("coach")}</div><ul>
       <li class="player"><span class="avatar coach">${initials(coachName)}</span><span class="pnum"></span>
-      <span class="pn">${coachName}</span><span class="pmeta">감독</span></li></ul></div>` : "";
+      <span class="pn">${coachName}</span><span class="pmeta">${tr("coach")}</span></li></ul></div>` : "";
   modal.innerHTML = `
     <div class="mh teamhead" style="${flag?`--flagbg:url('${flag}')`:""}">
-      <button class="bell ${isSubTeam(t.id)?"on":""}" title="${isSubTeam(t.id)?"알림 끄기":"알림 받기"}" onclick="toggleSub('team', '${t.id}', this)">🔔</button>
+      <button class="bell ${isSubTeam(t.id)?"on":""}" title="${isSubTeam(t.id)?tr("alertOn"):tr("alertOff")}" onclick="toggleSub('team', '${t.id}', this)">🔔</button>
       <button class="close" onclick="closeTeam()">✕</button>
       <img class="bigflag" src="${flag}" onerror="this.src='${flagFb}'"/>
       ${inf.iso2?`<span class="cmap" style="-webkit-mask-image:url('https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${inf.iso2}/vector.svg');mask-image:url('https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${inf.iso2}/vector.svg')" title="${t.area&&t.area.name||""}"></span>`:""}
       <div class="ti"><div class="nm">${t.name}${t.rank?` <span class="rk">FIFA ${t.rank}</span>`:""}</div>
         <div class="meta">${t.area&&t.area.name?t.area.name:""}${t.tla?" · "+t.tla:""}</div>
-        ${cmeta?`<div class="cmeta">${cmeta}</div>`:""}</div>
+        ${cmeta?`<div class="cmeta">${cmeta}</div>`:""}${cmeta2?`<div class="cmeta model">${cmeta2}</div>`:""}${starsHtml}</div>
     </div>
     <div class="mb">
       <div class="mb-cols">
         <div class="mb-col">
-          ${wcTable ? `<div class="sect-title">월드컵 역대 성적</div>${wcTable}` : ""}
-          ${fxHtml ? `<div class="sect-title">일정</div><div class="fixtures">${fxHtml}</div>` : ""}
+          ${wcTable ? `<div class="sect-title">${tr("wcHistory")}</div>${wcTable}` : ""}
+          ${fxHtml ? `<div class="sect-title">${tr("scheduleTitle")}</div><div class="fixtures">${fxHtml}</div>` : ""}
         </div>
         <div class="mb-col">
-          ${(coachHtml||squadHtml) ? `<div class="sect-title">선수단</div>${coachHtml}${squadHtml}` : ""}
+          ${(coachHtml||squadHtml) ? `<div class="sect-title">${tr("squad")}</div>${coachHtml}${squadHtml}` : ""}
         </div>
       </div>
     </div>`;
@@ -1322,19 +1953,26 @@ function closeTeam(){ document.getElementById("overlay").classList.remove("open"
 /* ---- player detail (height/weight via API-Football, layers over team popup) ---- */
 function playerModalHtml(p){
   const rows = [];
-  const clubVal = p.club ? `${p.club}${p.clubCountry?` <span class="muted">· ${p.clubCountry}</span>`:""}` : `<span class="muted">조회 중…</span>`;
-  rows.push(["소속팀", clubVal]);
-  if (p.position) rows.push(["포지션", POS_KO[p.position]||p.position]);
-  if (p.number!=null) rows.push(["등번호", p.number]);
-  if (p.age!=null) rows.push(["나이", p.age+"세"]);
-  if (p.dateOfBirth) rows.push(["생일", p.dateOfBirth]);
-  if (p.height) rows.push(["신장", p.height+" cm"]);
-  if (p.weight) rows.push(["체중", p.weight+" kg"]);
-  if (p.birthPlace) rows.push(["출생지", p.birthPlace]);
-  const statusBadge = p.available===false ? `<div class="pstatus">⚠ ${p.statusText||"출전 불가"}</div>` : "";
-  const av = p.photo
-    ? `<img src="${p.photo}" onerror="this.outerHTML='<div class=&quot;pavatar&quot;>${initials(p.name)}</div>'"/>`
-    : `<div class="pavatar">${initials(p.name)}</div>`;
+  const clubVal = p.club ? `${p.club}${p.clubCountry?` <span class="muted">· ${p.clubCountry}</span>`:""}` : `<span class="muted">${tr("lookup")}</span>`;
+  rows.push([tr("club"), clubVal]);
+  if (p.position) rows.push([tr("position"), posName(p.position)]);
+  if (p.wcGoals) rows.push([tr("wcGoals"), `${p.wcGoals} ⚽`]);
+  if (p.wcGoalsAll) rows.push([tr("wcGoalsAll"), `${p.wcGoalsAll} ⚽`]);
+  if (p.number!=null) rows.push([tr("number"), p.number]);
+  if (p.age!=null) rows.push([tr("ageL"), tr("ageN",{n:p.age})]);
+  if (p.dateOfBirth) rows.push([tr("birthday"), p.dateOfBirth]);
+  if (p.height) rows.push([tr("height"), p.height+" cm"]);
+  if (p.weight) rows.push([tr("weight"), p.weight+" kg"]);
+  if (p.birthPlace) rows.push([tr("birthplace"), p.birthPlace]);
+  if (p.available===false) rows.push([tr("injured"), `🩹 ${p.statusText?trStatus(p.statusText):tr("outOfSquad")}`]);
+  if (p.yc) rows.push([tr("cardYellow"), `🟨 ${p.yc}`]);   // yellow cards this tournament
+  if (p.rc) rows.push([tr("cardRed"), `🟥 ${p.rc}`]);      // red cards this tournament
+  const statusBadge = p.available===false ? `<div class="pstatus">⚠ ${p.statusText?trStatus(p.statusText):tr("outOfSquad")}</div>` : "";
+  const fb = flagBg(currentTeamFlag);   // faded flag backdrop behind transparent cutouts
+  const photo = p._detailPhoto || p.photo;   // prefer the action/full photo for the big card
+  const av = photo
+    ? `<img style="${fb}" src="${imgUrl(photo)}" onerror="this.outerHTML='<div class=&quot;pavatar&quot; style=&quot;${fb}&quot;>${initials(p.name)}</div>'"/>`
+    : `<div class="pavatar" style="${fb}">${initials(p.name)}</div>`;
   return `
     <button class="close" onclick="closePlayer()">✕</button>
     <div class="pcard-head">
@@ -1352,13 +1990,17 @@ function openPlayer(id){
   if (!p){ return; }
   document.getElementById("poverlay").classList.add("open");
   modal.innerHTML = playerModalHtml(p);
-  // club via TheSportsDB by name (free), once, cached
-  if (!p.club){
+  // club + a nicer action/full photo via TheSportsDB / Wikipedia (preferred for the big card)
+  if (!p._fetched){
+    p._fetched = true;
     fetch(`/api/playerclub?name=${encodeURIComponent(p.name||"")}`)
       .then(r=>r.json()).then(res=>{
-        p.club = (res && res.club) || "—"; p.clubCountry = res && res.clubCountry;
+        if (res){
+          if (!p.club){ p.club = res.club || "—"; p.clubCountry = res.clubCountry; }
+          if (res.photo) p._detailPhoto = res.photo;   // prefer action/full photo over headshot
+        } else if (!p.club){ p.club = "—"; }
         if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p);
-      }).catch(()=>{ p.club = "—"; if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p); });
+      }).catch(()=>{ if (!p.club) p.club = "—"; if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p); });
   }
 }
 function closePlayer(){ document.getElementById("poverlay").classList.remove("open"); }
@@ -1375,6 +2017,7 @@ document.getElementById("refreshBtn").onclick = async () => {
 };
 
 const params = new URLSearchParams(location.search);
+applyStaticI18n();   // localize static header/tabs to the saved language before data loads
 loadAll().then(() => {
   if (params.get("tz") === "local") setTz("local");
   if (params.get("view") === "group") setView("group");
