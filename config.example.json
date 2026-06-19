@@ -1,5 +1,6 @@
 {
-  "football_data_token": "<your-football-data.org-token>",
+  "gemini_api_key": "<google-ai-studio-key (free tier) — enables the Gemini pick>",
+  "openai_api_key": "<openai-key (paid) — enables the ChatGPT pick>",
   "competition": "WC",
   "season": 2026,
   "cache_ttl_seconds": 60,
