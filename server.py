@@ -54,7 +54,7 @@ CONFIG_PATH = os.path.join(ROOT, "config.json")
 API_BASE = "https://api.football-data.org/v4"
 
 DEFAULTS = {
-    "gemini_api_key": "",     # Google AI Studio (free tier) → enables the ✨ Gemini pick
+    "groq_api_key": "",       # console.groq.com (free) → enables the ⚡ Groq pick
     "openai_api_key": "",     # OpenAI (paid) → enables the 💬 ChatGPT pick
     "competition": "WC",
     "season": 2026,
@@ -75,7 +75,9 @@ def load_config():
         pass
     except Exception as e:
         print(f"[warn] bad config.json: {e}")
-    for k in ("gemini_api_key", "openai_api_key"):
+    if cfg.get("grop_api_key") and not cfg.get("groq_api_key"):   # tolerate a common typo
+        cfg["groq_api_key"] = cfg["grop_api_key"]
+    for k in ("groq_api_key", "openai_api_key"):
         v = (cfg.get(k) or "").strip()
         cfg[k] = "" if v.startswith("<") or v.upper().startswith("PUT_") else v
     return cfg
@@ -143,11 +145,18 @@ def _country_norm():
     return _country_norm.cache
 
 
+_UK_SUBDIV = {"scotland": "gb-sct", "england": "gb-eng", "wales": "gb-wls", "northernireland": "gb-nir"}
+
+
 def country_info(name):
     if not name:
         return None
     c = _country_norm()
-    return c.get(_canon(name)) or c.get(_norm(name))
+    info = c.get(_canon(name)) or c.get(_norm(name))
+    sub = _UK_SUBDIV.get(_canon(name))                  # UK home nations have their own flag (not the Union Jack)
+    if info and sub and info.get("iso2") == "gb":
+        info = {**info, "iso2": sub}                     # copy → don't mutate the shared cache
+    return info
 
 
 def _ranking_norm():
@@ -550,10 +559,20 @@ def save_edition(year):
 
 
 def get_standings():
-    """Current edition group standings — ESPN, short cache (live). No token, no mock."""
+    """Current edition group standings — ESPN, short cache (live). No token, no mock.
+    Enriched with each team's yellow/red card totals for display."""
     season = CONFIG.get("season")
     ttl = int(CONFIG.get("cache_ttl_seconds", 60))
-    return get_standings_espn(str(season), ttl=ttl)
+    data = get_standings_espn(str(season), ttl=ttl)
+    try:
+        tot = _team_card_totals(season)
+        for g in data.get("groups", []):
+            for r in g.get("table", []):
+                c = tot.get(_canon((r.get("team") or {}).get("name")), {})
+                r["yc"], r["rc"] = c.get("y", 0), c.get("r", 0)
+    except Exception as e:
+        print(f"[warn] standings cards: {e}")
+    return data
 
 
 def get_team(team_id):
@@ -1263,6 +1282,109 @@ def _suspension_penalty(name, year, before_utc):
                if e.get("side") == side and "card" in (t := (e.get("type") or "").lower()) and "red" in t)
 
 
+def _card_suspensions(team_name, year, before_utc):
+    """Set of normalized player names suspended for this team's match at `before_utc`, applying
+    FIFA card rules chronologically:
+      • two yellows in separate matches → banned the next match, then the yellow count resets
+      • a red (straight or second-yellow) → banned the next match
+      • a ban is served in the very next match, then cleared
+      • single yellow cards are wiped once the knockout stage begins (carry-over stops there)."""
+    cn = _canon(team_name)
+    ms = [m for m in get_matches_espn(str(year), ttl=300).get("matches", [])
+          if m.get("status") == "FINISHED"
+          and (m.get("utcDate") or "") < (before_utc or "~")
+          and cn in (_canon((m.get("home") or {}).get("name")), _canon((m.get("away") or {}).get("name")))]
+    ms.sort(key=lambda m: m.get("utcDate") or "")
+    yc = {}            # running single-yellow count per player (between resets)
+    pending = set()    # players banned for the team's NEXT match
+    yc_reset = False
+    POST_QF = {"SEMI_FINALS", "THIRD_PLACE", "FINAL"}
+    for m in ms:
+        if not yc_reset and (m.get("stage") or "") in POST_QF:
+            yc = {}; yc_reset = True            # FIFA: single yellows are wiped after the quarter-finals
+        pending = set()                          # last match's bans were served in it → clear
+        side = "home" if _canon((m.get("home") or {}).get("name")) == cn else "away"
+        det = (get_match_espn(str(m.get("id"))) or {}).get("match") or {}
+        reds, yel = set(), {}
+        for e in det.get("events", []):
+            if e.get("side") != side:
+                continue
+            tp = (e.get("type") or "").lower()
+            who = _norm(e.get("player") or "")
+            if not who or "card" not in tp:
+                continue
+            if "red" in tp:                       # straight red or yellow-red sending-off
+                reds.add(who)
+            elif "yellow" in tp:
+                yel[who] = yel.get(who, 0) + 1
+        for who, n in yel.items():
+            yc[who] = yc.get(who, 0) + n
+            if yc[who] >= 2:                      # accumulation → ban next match, reset count
+                pending.add(who); yc[who] = 0
+        for who in reds:
+            pending.add(who); yc[who] = 0
+    return pending
+
+
+def _player_ratings(team_name, year):
+    """Per-player importance (≈1.0 average, up to ~2.0 for stars) from ESPN per-match stats this
+    edition — goals/assists/shots/saves up, fouls down. Used to weight injury/suspension impact
+    so losing a high-rated player hurts the prediction more than losing a fringe player."""
+    cn = _canon(team_name)
+    key = f"pratings-{cn}-{year}"
+    cached, fresh = _read_cache(key, 1800)
+    if cached is not None and fresh:
+        return cached
+
+    def num(v):
+        try:
+            return float(str(v).replace(",", ""))
+        except Exception:
+            return 0.0
+    acc = {}
+    for m in get_matches_espn(str(year), ttl=300).get("matches", []):
+        if m.get("status") != "FINISHED":
+            continue
+        side = ("home" if _canon((m.get("home") or {}).get("name")) == cn
+                else "away" if _canon((m.get("away") or {}).get("name")) == cn else None)
+        if not side:
+            continue
+        data = http_json(f"{ESPN_BASE}/summary?event={m.get('id')}", f"espn-sum-{m.get('id')}", ttl=10 ** 9)
+        for r in (data or {}).get("rosters", []):
+            if r.get("homeAway") != side:
+                continue
+            for e in r.get("roster", []):
+                nn = _norm((e.get("athlete") or {}).get("displayName") or "")
+                if not nn:
+                    continue
+                st = {s.get("name"): num(s.get("value") if s.get("value") is not None else s.get("displayValue"))
+                      for s in (e.get("stats") or [])}
+                a = acc.setdefault(nn, {"g": 0, "as": 0, "sot": 0, "sv": 0, "f": 0, "app": 0})
+                a["g"] += st.get("totalGoals", st.get("goals", 0))
+                a["as"] += st.get("goalAssists", 0)
+                a["sot"] += st.get("shotsOnTarget", 0)
+                a["sv"] += st.get("saves", 0)
+                a["f"] += st.get("foulsCommitted", 0)
+                a["app"] += st.get("appearances", 0) or 1
+    out = {}
+    for nn, a in acc.items():
+        app = max(a["app"], 1)
+        score = (a["g"] * 4 + a["as"] * 2.5 + a["sot"] * 0.4 + a["sv"] * 0.25 - a["f"] * 0.1) / app
+        out[nn] = round(max(1.0, min(2.0, 1.0 + score * 0.12)), 3)   # baseline 1.0, star up to ~2.0
+    _write_cache(key, out)
+    return out
+
+
+def _injury_impact(team_name, year, ratings):
+    """Weighted count of unavailable players (each weighted by their importance rating)."""
+    try:
+        roster = espn_roster(team_name, season=year) or []
+    except Exception:
+        roster = []
+    return round(sum(ratings.get(_norm(p.get("name") or ""), 1.0)
+                     for p in roster if p.get("available") is False), 2)
+
+
 def _rating(name, year, form, inj, susp):
     rank = rank_for(name, year) or 60
     R = 1500.0
@@ -1499,12 +1621,37 @@ def predict_match(mid):
     year = CONFIG.get("season")
     utc = detail.get("utcDate") or "~"                    # only use info from before kickoff
     fh, fa = _team_form_before(h, year, utc), _team_form_before(a, year, utc)
-    injh, inja = _team_injuries(h, year), _team_injuries(a, year)
+    # per-player ratings (from past-match stats) weight how much each absence hurts
+    rat_h, rat_a = _player_ratings(h, year), _player_ratings(a, year)
+    injh, inja = _injury_impact(h, year, rat_h), _injury_impact(a, year, rat_a)
     elos = _team_elos(year, utc)                          # results-based team strength (pre-match)
-    # suspensions = last-match red cards + players on 2+ yellows (accumulation → ban)
-    yel_susp = lambda nm: sum(1 for v in _team_player_cards(nm, year).values() if v.get("y", 0) >= 2)
-    suh = _suspension_penalty(h, year, utc) + yel_susp(h)
-    sua = _suspension_penalty(a, year, utc) + yel_susp(a)
+    # suspensions for THIS match: 2-yellow accumulation + red cards, served then cleared (FIFA rules)
+    suh = round(sum(rat_h.get(nn, 1.0) for nn in _card_suspensions(h, year, utc)), 2)
+    sua = round(sum(rat_a.get(nn, 1.0) for nn in _card_suspensions(a, year, utc)), 2)
+    # lineup-aware: once the official XI is published, a side that rests/benches stars is weakened
+    # (deficit = best available XI rating − actual starters' rating; folded into the injury term)
+    try:
+        lu = get_lineup(str(mid))
+        if lu.get("available"):
+            def _xi_deficit(team_name, ratings):
+                sd = next((s for s in (lu.get("home"), lu.get("away"))
+                           if s and _canon(s.get("team")) == _canon(team_name)), None)
+                starters = [p for p in (sd or {}).get("players", []) if p.get("starter")] if sd else []
+                if len(starters) < 7:
+                    return 0.0
+                n = min(11, len(starters))
+                act = sum(ratings.get(_norm(p.get("name") or ""), 1.0) for p in starters[:n])
+                susp = _card_suspensions(team_name, year, utc)
+                avail = sorted((ratings.get(_norm(p.get("name") or ""), 1.0)
+                                for p in (espn_roster(team_name, season=year) or [])
+                                if p.get("available") is not False
+                                and _norm(p.get("name") or "") not in susp), reverse=True)
+                best = sum(avail[:n]) if avail else act
+                return round(max(0.0, best - act), 2)
+            injh += _xi_deficit(h, rat_h)
+            inja += _xi_deficit(a, rat_a)
+    except Exception as e:
+        print(f"[warn] lineup-adjust {mid}: {e}")
     # minor factors: rest days, travel distance (since previous match) + match weather
     this_city = ((detail.get("venue") or {}).get("city") or "").split(",")[0].strip()
     this_co = geocode(this_city) if this_city else None
@@ -1585,22 +1732,28 @@ def _parse_llm_pick(txt):
 
 
 def _http_post_json(url, body, headers, timeout=25):
+    # browser-like UA so Cloudflare-fronted APIs (e.g. Groq) don't bot-block the default urllib UA
+    base = {"Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WorldCupPilot/1.0"}
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
-                                 headers={"Content-Type": "application/json", **headers}, method="POST")
+                                 headers={**base, **headers}, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
-def _gemini_pick(prompt):
-    key = (CONFIG.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY") or "").strip()
+def _groq_pick(prompt):
+    # Groq (console.groq.com) — free, fast, OpenAI-compatible; runs Llama 3.3.
+    key = (CONFIG.get("groq_api_key") or CONFIG.get("grop_api_key")
+           or os.environ.get("GROQ_API_KEY") or "").strip()
     if not key:
         return {"available": False, "reason": "no_key"}
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"gemini-2.5-flash:generateContent?key={urllib.parse.quote(key)}")
-    body = {"contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.4}}
-    data = _http_post_json(url, body, {})
-    txt = (((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [{}])[0].get("text")
+    body = {"model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "system", "content": "You are an expert football analyst. Respond only with JSON."},
+                         {"role": "user", "content": prompt}],
+            "response_format": {"type": "json_object"}, "temperature": 0.4}
+    data = _http_post_json("https://api.groq.com/openai/v1/chat/completions", body,
+                           {"Authorization": f"Bearer {key}"})
+    txt = (((data.get("choices") or [{}])[0].get("message") or {}).get("content"))
     pick = _parse_llm_pick(txt)
     return {"available": True, **pick} if pick else {"available": False, "reason": "parse"}
 
@@ -1625,29 +1778,59 @@ def _openai_pick(prompt):
     return {"available": True, **pick} if pick else {"available": False, "reason": "parse"}
 
 
+_ai_revalidating = set()
+
+
+def _ai_fetch(provider, prompt, hn, an):
+    try:
+        res = _groq_pick(prompt) if provider == "groq" else _openai_pick(prompt)
+    except Exception as e:
+        code = getattr(e, "code", None)
+        print(f"[warn] ai_pick {provider}: {e}")
+        res = {"available": False, "reason": (f"http_{code}" if code else "error")}
+    res["provider"] = provider
+    res["home"], res["away"] = hn, an
+    return res
+
+
+def _ai_revalidate_bg(mid, provider, ckey):
+    """Stale cache is served immediately; this refreshes it in the background and replaces it
+    only on a successful re-fetch (a failed/rate-limited call leaves the old pick intact)."""
+    if ckey in _ai_revalidating:
+        return
+    _ai_revalidating.add(ckey)
+
+    def run():
+        try:
+            prompt, hn, an = _llm_prompt(mid)
+            if prompt:
+                res = _ai_fetch(provider, prompt, hn, an)
+                if res.get("available"):
+                    _write_cache(ckey, res)
+        finally:
+            _ai_revalidating.discard(ckey)
+    threading.Thread(target=run, daemon=True).start()
+
+
 def ai_pick(mid, provider):
-    """Cached real-LLM pick. provider = 'gemini' | 'openai'. A FINISHED match's pre-match pick
-    never changes → cache permanently (no re-calls); an upcoming match → 6h (data still updates)."""
-    provider = "openai" if provider == "openai" else "gemini"
+    """Cached real-LLM pick. provider = 'groq' | 'openai'. Show the cached pick immediately;
+    if it's stale, refresh in the background and replace it only on success (never blanks)."""
+    provider = "openai" if provider == "openai" else "groq"
     ckey = f"aipick-{provider}-{mid}"
     det = (get_match_espn(str(mid)) or {}).get("match") or {}
     ttl = 10 ** 9 if det.get("status") == "FINISHED" else 21600
     cached, fresh = _read_cache(ckey, ttl)
-    if cached is not None and fresh and cached.get("available"):
+    if cached is not None and cached.get("available"):
+        if not fresh:
+            _ai_revalidate_bg(mid, provider, ckey)    # 1) show cache now  2) refresh in background
         return cached
+    # no usable cache yet → fetch synchronously this once
     prompt, hn, an = _llm_prompt(mid)
     if not prompt:
         return {"available": False, "reason": "no_match", "provider": provider}
-    try:
-        res = _gemini_pick(prompt) if provider == "gemini" else _openai_pick(prompt)
-    except Exception as e:
-        code = getattr(e, "code", None)
-        print(f"[warn] ai_pick {provider} {mid}: {e}")
-        res = {"available": False, "reason": (f"http_{code}" if code else "error")}
-    res["provider"] = provider
-    res["home"], res["away"] = hn, an
+    res = _ai_fetch(provider, prompt, hn, an)
     if res.get("available"):
-        _write_cache(ckey, res)               # only cache successes → retries pick up a new key
+        _write_cache(ckey, res)                       # 3) success → cache for next time
     return res
 
 
@@ -1663,7 +1846,7 @@ def _model_pick_py(pr):
     if not pr.get("available"):
         return None
     h, a = pr["home"], pr["away"]
-    W, K = _ACC_W, _ACC_K
+    W, K = _ACC_W, {**_ACC_K, **model_params()}   # apply Refresh-tuned params
 
     def trate(s):
         return (W["elo"] * (((s.get("elo") or 1500) - 1500) / 8) - W["inj"] * (s.get("inj") or 0) * 6
@@ -1696,17 +1879,38 @@ def _model_pick_py(pr):
     return {"winner": oc, "scoreHome": sH, "scoreAway": sA}
 
 
+def _model_pick_cached(mid):
+    """Model pick for a FINISHED match never changes → cache permanently (predict_match is the
+    slow part of the accuracy tab; this makes repeat loads instant)."""
+    ckey = f"modelpick-{mid}"
+    cached, _ = _read_cache(ckey, 10 ** 9)
+    if cached is not None:
+        return cached or None
+    try:
+        mp = _model_pick_py(predict_match(mid))
+    except Exception:
+        mp = None
+    _write_cache(ckey, mp or {})
+    return mp
+
+
 def _ai_pick_cached(mid, provider):
-    provider = "openai" if provider == "openai" else "gemini"
+    provider = "openai" if provider == "openai" else "groq"
     cached, _ = _read_cache(f"aipick-{provider}-{mid}", 10 ** 9)   # finished-match picks are permanent
     return cached
 
 
-_PRED_KEYS = ("model", "dk", "gemini", "openai")
+_PRED_KEYS = ("model", "dk", "groq", "openai")
 
 
 def _blank_tally():
     return {k: {"hit": 0, "exact": 0, "n": 0} for k in _PRED_KEYS}
+
+
+def _is_placeholder_team(name):
+    """Knockout slots read 'Group A 2nd Place' / 'Round of 32 1 Winner' until the bracket is
+    decided — those aren't real teams, so don't predict on them."""
+    return bool(re.search(r"winner|place|group|runner|tbd|/", name or "", re.I))
 
 
 def compute_accuracy():
@@ -1716,11 +1920,22 @@ def compute_accuracy():
     cached, fresh = _read_cache("accuracy", 300)
     if cached is not None and fresh:
         return cached
-    mats = [m for m in get_matches().get("matches", [])
-            if m.get("status") == "FINISHED" and (m.get("score") or {}).get("home") is not None]
-    mats.sort(key=lambda m: m.get("utcDate") or "")
+    allm = list(get_matches().get("matches", []))
+    allm.sort(key=lambda m: m.get("utcDate") or "")
+    team_grp = {}      # team name → group letter (so each round can be sub-grouped by group)
+    try:
+        for gr in (get_standings_espn(str(CONFIG.get("season"))) or {}).get("groups", []):
+            letter = re.sub(r"(?i)^group\s*", "", gr.get("group") or "").strip()
+            for r in gr.get("table", []):
+                nm = (r.get("team") or {}).get("name")
+                if nm:
+                    team_grp[nm] = letter
+    except Exception:
+        pass
     overall = _blank_tally()
     groups, gindex, appear = [], {}, {}
+    nfin = 0
+    warm_pending = 0
 
     def grp(rkey, rnd, stage):
         if rkey not in gindex:
@@ -1728,9 +1943,20 @@ def compute_accuracy():
             groups.append({"round": rnd, "stage": stage, "predictors": _blank_tally(), "matches": []})
         return groups[gindex[rkey]]
 
-    for m in mats:
-        sc = m["score"]; ah, aa = sc["home"], sc["away"]
-        ao = "home" if ah > aa else "away" if aa > ah else "draw"
+    def tally(g, key, ok, exact):
+        for t in (overall[key], g["predictors"][key]):
+            t["n"] += 1
+            if ok:
+                t["hit"] += 1
+            if exact:
+                t["exact"] += 1
+
+    def res_of(sh, sa):   # outcome implied by the SHOWN scoreline (so colors match the number)
+        return "home" if sh > sa else "away" if sa > sh else "draw"
+
+    for m in allm:
+        sc = m.get("score") or {}
+        finished = m.get("status") == "FINISHED" and sc.get("home") is not None
         mid = str(m["id"])
         hn, an = m["home"]["name"], m["away"]["name"]
         stage = m.get("stage") or ""
@@ -1742,40 +1968,58 @@ def compute_accuracy():
         else:
             rnd = None
             rkey = ("k", stage)
+            # skip not-yet-decided knockout slots (placeholder names until the bracket is set)
+            if not finished and (not (hn and an) or _is_placeholder_team(hn) or _is_placeholder_team(an)):
+                continue
         g = grp(rkey, rnd, stage)
-        row = {"home": hn, "away": an, "actual": f"{ah}-{aa}", "ao": ao}
-
-        def tally(key, ok, exact):
-            for t in (overall[key], g["predictors"][key]):
-                t["n"] += 1
-                if ok:
-                    t["hit"] += 1
-                if exact:
-                    t["exact"] += 1
-        try:
-            mp = _model_pick_py(predict_match(mid))
-        except Exception:
-            mp = None
-        if mp:
-            ok = mp["winner"] == ao
-            tally("model", ok, mp["scoreHome"] == ah and mp["scoreAway"] == aa)
-            row["model"] = f'{mp["scoreHome"]}-{mp["scoreAway"]}'; row["model_ok"] = ok
-        det = (get_match_espn(mid) or {}).get("match") or {}
-        o = det.get("odds") or {}
-        if o.get("home") and o.get("away"):
-            cand = {k: v for k, v in {"home": o.get("home"), "draw": o.get("draw"), "away": o.get("away")}.items() if v}
-            dp = min(cand, key=cand.get)
-            tally("dk", dp == ao, False)
-            row["dk"] = dp; row["dk_ok"] = dp == ao
-        for pv in ("gemini", "openai"):
-            r = _ai_pick_cached(mid, pv)
-            if r and r.get("available"):
-                ok = r["winner"] == ao
-                tally(pv, ok, r.get("scoreHome") == ah and r.get("scoreAway") == aa)
-                row[pv] = f'{r.get("scoreHome")}-{r.get("scoreAway")}'; row[pv + "_ok"] = ok
+        if finished:
+            nfin += 1
+            ah, aa = sc["home"], sc["away"]
+            ao = "home" if ah > aa else "away" if aa > ah else "draw"
+            row = {"home": hn, "away": an, "actual": f"{ah}-{aa}", "ao": ao}
+            mp = _model_pick_cached(mid)
+            if mp:
+                ok = res_of(mp["scoreHome"], mp["scoreAway"]) == ao
+                ex = mp["scoreHome"] == ah and mp["scoreAway"] == aa
+                tally(g, "model", ok, ex)
+                row["model"] = f'{mp["scoreHome"]}-{mp["scoreAway"]}'; row["model_ok"] = ok; row["model_ex"] = ex
+            det = (get_match_espn(mid) or {}).get("match") or {}
+            o = det.get("odds") or {}
+            if o.get("home") and o.get("away"):
+                cand = {k: v for k, v in {"home": o.get("home"), "draw": o.get("draw"), "away": o.get("away")}.items() if v}
+                dp = min(cand, key=cand.get)
+                tally(g, "dk", dp == ao, False)
+                row["dk"] = dp; row["dk_ok"] = dp == ao
+            for pv in ("groq", "openai"):
+                r = _ai_pick_cached(mid, pv)
+                if r and r.get("available"):
+                    ok = res_of(r.get("scoreHome"), r.get("scoreAway")) == ao
+                    ex = r.get("scoreHome") == ah and r.get("scoreAway") == aa
+                    tally(g, pv, ok, ex)
+                    row[pv] = f'{r.get("scoreHome")}-{r.get("scoreAway")}'; row[pv + "_ok"] = ok; row[pv + "_ex"] = ex
+        else:
+            # upcoming match → show the predictions only (no actual result yet, not scored)
+            row = {"home": hn, "away": an, "pending": True}
+            mp = _model_pick_cached(mid)
+            if mp:
+                row["model"] = f'{mp["scoreHome"]}-{mp["scoreAway"]}'
+            det = (get_match_espn(mid) or {}).get("match") or {}
+            o = det.get("odds") or {}
+            if o.get("home") and o.get("away"):
+                cand = {k: v for k, v in {"home": o.get("home"), "draw": o.get("draw"), "away": o.get("away")}.items() if v}
+                row["dk"] = min(cand, key=cand.get)
+            for pv in ("groq", "openai"):
+                r = _ai_pick_cached(mid, pv)
+                if r and r.get("available"):
+                    row[pv] = f'{r.get("scoreHome")}-{r.get("scoreAway")}'
+                elif pv == "groq":
+                    warm_pending += 1   # groq pick not cached yet → background-warm it
+        if stage == "GROUP_STAGE":
+            row["grp"] = team_grp.get(hn) or team_grp.get(an) or ""
         g["matches"].append(row)
-    rem = sum(max(0, len(mats) - overall[pv]["n"]) for pv in ("gemini", "openai"))
-    out = {"predictors": overall, "rounds": groups, "total": len(mats), "aiRemaining": rem}
+    rem = sum(max(0, nfin - overall[pv]["n"]) for pv in ("groq", "openai"))
+    out = {"predictors": overall, "rounds": groups, "total": nfin,
+           "aiRemaining": rem, "warmPending": warm_pending}
     _write_cache("accuracy", out)
     return out
 
@@ -1791,24 +2035,199 @@ def grade_ai_bg():
 
     def run():
         try:
-            mats = [m for m in get_matches().get("matches", [])
-                    if m.get("status") == "FINISHED" and (m.get("score") or {}).get("home") is not None]
+            def _warmable(m):
+                if m.get("status") == "FINISHED" and (m.get("score") or {}).get("home") is not None:
+                    return True
+                # upcoming match with REAL teams (group stage always; knockout once the bracket is set)
+                hn, an = m["home"].get("name"), m["away"].get("name")
+                return (m.get("status") == "SCHEDULED" and hn and an
+                        and not _is_placeholder_team(hn) and not _is_placeholder_team(an))
+            mats = [m for m in get_matches().get("matches", []) if _warmable(m)]
+            blocked = set()        # a provider that 429s is rate-limited org-wide → stop hammering it
             for m in mats:
-                for pv in ("openai", "gemini"):
-                    for _ in range(4):
-                        r = ai_pick(str(m["id"]), pv)
-                        if r.get("available"):
-                            break
-                        if r.get("reason") == "http_429":
-                            time.sleep(8)
-                        else:
-                            break
+                for pv in ("openai", "groq"):
+                    if pv in blocked or _ai_pick_cached(str(m["id"]), pv):
+                        continue
+                    r = ai_pick(str(m["id"]), pv)
+                    if r.get("available"):
+                        time.sleep(1.2)              # steady pacing → stay under per-minute limits
+                    elif r.get("reason") == "http_429":
+                        blocked.add(pv)              # skip this provider for the rest of the run; retry next cycle
+                    # other errors: just skip this match for this provider
         finally:
             try:
                 os.remove(_cache_file("accuracy"))   # force the scoreboard to recompute with new picks
             except OSError:
                 pass
             _grading.discard(1)
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+
+def _accuracy_warm_worker():
+    """Pre-compute the scoreboard in the background so the Accuracy tab opens instantly
+    (warms the per-match model-pick cache + the 5-min accuracy cache)."""
+    time.sleep(12)
+    while True:
+        try:
+            acc = compute_accuracy()
+            if acc.get("aiRemaining", 0) > 0 or acc.get("warmPending", 0) > 0:
+                grade_ai_bg()   # newly-finished matches → grade; upcoming → pre-warm groq picks
+        except Exception as e:
+            print(f"[warn] accuracy warm: {e}")
+        time.sleep(240)
+
+
+threading.Thread(target=_accuracy_warm_worker, daemon=True).start()
+
+
+# ---- self-tuning: re-fit the Elo x Score shape params on real results (triggered by Refresh) ----
+_MODEL_DEFAULTS = {"avg": 1.30, "tiltScale": 220, "tiltCap": 0.95, "formK": 1.5}
+_TUNE_EDITIONS = [2026, 2022, 2018, 2014, 2010, 2006, 2002, 1998, 1994]
+_tuning = set()
+
+
+def _model_params_path():
+    return os.path.join(os.path.dirname(CONFIG_PATH) or ROOT, "model_params.json")
+
+
+def model_params():
+    try:
+        with open(_model_params_path(), encoding="utf-8") as f:
+            return {**_MODEL_DEFAULTS, **json.load(f)}
+    except Exception:
+        return dict(_MODEL_DEFAULTS)
+
+
+def _tune_state_path():
+    return os.path.join(os.path.dirname(CONFIG_PATH) or ROOT, "tune_state.json")
+
+
+def _finished_signature():
+    """Fingerprint of THIS edition's finished results (past WCs never change) — used to skip a
+    re-tune when nothing new has finished since the last one."""
+    try:
+        fin = sorted((str(m["id"]), (m.get("score") or {}).get("home"), (m.get("score") or {}).get("away"))
+                     for m in get_matches().get("matches", [])
+                     if m.get("status") == "FINISHED" and (m.get("score") or {}).get("home") is not None)
+        return hashlib.md5(json.dumps(fin).encode("utf-8")).hexdigest()
+    except Exception:
+        return ""
+
+
+def _read_tune_sig():
+    try:
+        with open(_tune_state_path(), encoding="utf-8") as f:
+            return json.load(f).get("sig")
+    except Exception:
+        return None
+
+
+def _write_tune_sig(sig):
+    try:
+        with open(_tune_state_path(), "w", encoding="utf-8") as f:
+            json.dump({"sig": sig}, f)
+    except OSError:
+        pass
+
+
+def _tune_samples():
+    """Replay every finished match (this edition + past WCs) → per-match pre-kickoff state
+    (Elo gap + running form). Elo/form don't depend on the tuned shape params, so we build
+    these once and score many param sets against them cheaply."""
+    samples = []
+    for yr in _TUNE_EDITIONS:
+        try:
+            data = get_matches() if str(yr) == str(CONFIG.get("season")) else get_matches_espn(str(yr))
+        except Exception:
+            continue
+        fin = [m for m in data.get("matches", [])
+               if m.get("status") == "FINISHED" and (m.get("score") or {}).get("home") is not None]
+        fin.sort(key=lambda m: m.get("utcDate") or "")
+        elo, form = {}, {}
+        for m in fin:
+            hn, an = m["home"]["name"], m["away"]["name"]
+            eh = elo.get(hn, _init_elo(m["home"].get("rank")))
+            ea = elo.get(an, _init_elo(m["away"].get("rank")))
+            fh = form.get(hn, {"p": 0, "gf": 0, "ga": 0})
+            fa = form.get(an, {"p": 0, "gf": 0, "ga": 0})
+            sh, sa = m["score"]["home"], m["score"]["away"]
+            host = 1 if (yr == 2026 and _canon(hn) in _HOSTS_2026) else 0
+            samples.append((eh, ea, dict(fh), dict(fa), host, sh, sa))
+            exp = 1 / (1 + 10 ** ((ea - eh) / 400))
+            s = 1.0 if sh > sa else 0.5 if sh == sa else 0.0
+            kk = 32 * (math.log(abs(sh - sa) + 1) + 1)
+            elo[hn] = eh + kk * (s - exp); elo[an] = ea + kk * ((1 - s) - (1 - exp))
+            form[hn] = {"p": fh["p"] + 1, "gf": fh["gf"] + sh, "ga": fh["ga"] + sa}
+            form[an] = {"p": fa["p"] + 1, "gf": fa["gf"] + sa, "ga": fa["ga"] + sh}
+    return samples
+
+
+def _score_params(samples, P):
+    A, TS, TC, K = P["avg"], P["tiltScale"], P["tiltCap"], P["formK"]
+    oh = ex = 0; mae = 0.0; n = len(samples) or 1
+    for eh, ea, fh, fa, host, sh, sa in samples:
+        dr = 0.75 * (eh - ea) + 30 + (60 if host else 0)   # mirrors teamRating (elo w=6, home w=3)
+        tilt = max(-TC, min(TC, dr / TS))
+        atkh = (fh["gf"] + A * K) / (fh["p"] + K); dfnh = (fh["ga"] + A * K) / (fh["p"] + K)
+        atka = (fa["gf"] + A * K) / (fa["p"] + K); dfna = (fa["ga"] + A * K) / (fa["p"] + K)
+        lh = max(.2, ((atkh + dfna) / 2) * (1 + tilt)); la = max(.2, ((atka + dfnh) / 2) * (1 - tilt))
+        best = -1; pH = pA = 1
+        for i in range(7):
+            pi = math.exp(-lh) * lh ** i / math.factorial(i)
+            for j in range(7):
+                pr = pi * (math.exp(-la) * la ** j / math.factorial(j))
+                if pr > best + 1e-9 or (pr > best - 1e-9 and i + j > pH + pA):
+                    best = pr if pr > best else best; pH, pA = i, j
+        po = "home" if pH > pA else "away" if pA > pH else "draw"
+        ao = "home" if sh > sa else "away" if sa > sh else "draw"
+        oh += po == ao; ex += pH == sh and pA == sa; mae += abs(pH - sh) + abs(pA - sa)
+    return oh / n, ex / n, mae / (2 * n)
+
+
+def tune_model():
+    """Grid-search the shape params to best fit real results; persist for future predictions."""
+    if _tuning:
+        return False
+    _tuning.add(1)
+
+    def run():
+        try:
+            sig = _finished_signature()
+            if sig and sig == _read_tune_sig():       # (A) no new results since last tune → skip the heavy work
+                print("[info] Elo x Score tune skipped — no new results since last tune")
+                return
+            samples = _tune_samples()
+            if len(samples) < 30:
+                return
+            best = None
+            for A in (1.25, 1.35, 1.45):
+                for TS in (200, 240, 280):
+                    for TC in (0.7, 0.85, 1.0):
+                        for K in (1.0, 1.5, 2.0):
+                            P = {"avg": A, "tiltScale": TS, "tiltCap": TC, "formK": K}
+                            oh, exr, mae = _score_params(samples, P)
+                            obj = oh + 1.5 * exr - 0.15 * mae   # reward winner+exact, penalise score distance
+                            if best is None or obj > best[0]:
+                                best = (obj, P)
+            changed = best[1] != model_params()
+            with open(_model_params_path(), "w", encoding="utf-8") as f:
+                json.dump(best[1], f)
+            _write_tune_sig(sig)                     # remember these results so a repeat Refresh is a no-op
+            if changed:                              # params moved → model picks must recompute
+                try:
+                    for fn in os.listdir(CACHE_DIR):
+                        if fn.startswith("modelpick-") or fn == "accuracy.json":
+                            os.remove(os.path.join(CACHE_DIR, fn))
+                except OSError:
+                    pass
+                try:
+                    compute_accuracy()               # (B) rebuild picks here (background) so the tab opens instantly
+                except Exception as e:
+                    print(f"[warn] post-tune rewarm: {e}")
+            print(f"[info] Elo x Score tuned on {len(samples)} matches → {best[1]} (obj {best[0]:.3f})")
+        finally:
+            _tuning.discard(1)
     threading.Thread(target=run, daemon=True).start()
     return True
 
@@ -1839,6 +2258,36 @@ def _team_player_cards(team_name, year):
             elif "yellow" in tp:
                 t["y"] += 1
     return tally
+
+
+def _team_card_totals(year):
+    """{canon team name: {'y':yellows,'r':reds}} for the whole edition — one pass over finished
+    matches' events (so the group table can show each team's discipline)."""
+    key = f"cardtotals-{year}"
+    cached, fresh = _read_cache(key, 300)
+    if cached is not None and fresh:
+        return cached
+    tot = {}
+    for m in get_matches_espn(str(year), ttl=300).get("matches", []):
+        if m.get("status") != "FINISHED":
+            continue
+        det = (get_match_espn(str(m.get("id"))) or {}).get("match") or {}
+        hc = _canon((m.get("home") or {}).get("name"))
+        ac = _canon((m.get("away") or {}).get("name"))
+        for e in det.get("events", []):
+            tp = (e.get("type") or "").lower()
+            if "card" not in tp:
+                continue
+            cn = hc if e.get("side") == "home" else ac if e.get("side") == "away" else None
+            if not cn:
+                continue
+            t = tot.setdefault(cn, {"y": 0, "r": 0})
+            if "red" in tp:
+                t["r"] += 1
+            elif "yellow" in tp:
+                t["y"] += 1
+    _write_cache(key, tot)
+    return tot
 
 
 def _team_goal_tally(name, year):
@@ -1948,7 +2397,9 @@ def get_lineup(espn_id):
     away = next((r for r in rosters if r.get("homeAway") == "away"),
                 rosters[1] if len(rosters) > 1 else rosters[0])
     h, a = side(home), side(away)
-    if not (h["players"] or a["players"]):     # rosters skeleton but no XI yet (not announced)
+    # only treat as the REAL lineup once the official XI (starters) is published; until then → predicted
+    has_xi = any(p.get("starter") for p in h["players"]) or any(p.get("starter") for p in a["players"])
+    if not has_xi:
         return {"available": False}
     warm_images_bg([pl.get("photo") for sd in (h, a) for pl in sd.get("players", []) if pl.get("photo")])
     return {"available": True, "home": h, "away": a}
@@ -2007,23 +2458,23 @@ def _predict_side_xi(name, year, before_utc, gap=0):
     """Predicted starting XI: last match's XI minus injured/suspended, reshaped for the opponent
     (formation adapts to the strength gap), gaps filled from the squad by position."""
     roster = espn_roster(name, season=year) or []
-    cards = _team_player_cards(name, year)
+    susp_set = _card_suspensions(name, year, before_utc)   # FIFA card rules (accumulation + reset)
+    ratings = _player_ratings(name, year)                  # past-match player ratings → pick better fill-ins
     rost_by_norm = {_norm(p.get("name") or ""): p for p in roster}
-    # who is out: injuries (roster availability) + suspensions (red card / 2-yellow accumulation)
+    # who is out: injuries (roster availability) + suspensions
     out, inj_norm, susp_norm = [], set(), set()
     for p in roster:
         if p.get("available") is False:
             nn = _norm(p.get("name") or "")
             inj_norm.add(nn)
             out.append({"name": p.get("name"), "status": p.get("statusText") or "부상", "reason": "inj"})
-    for nn, c in cards.items():
+    for nn in susp_set:
         if nn in inj_norm:
             continue
-        if c.get("r", 0) >= 1 or c.get("y", 0) >= 2:
-            susp_norm.add(nn)
-            pp = rost_by_norm.get(nn)
-            out.append({"name": (pp or {}).get("name") or (e := nn) and nn.title(),
-                        "status": "출장정지", "reason": "susp"})
+        susp_norm.add(nn)
+        pp = rost_by_norm.get(nn)
+        out.append({"name": (pp or {}).get("name") or nn.title(),
+                    "status": "출장정지", "reason": "susp"})
     unavailable = inj_norm | susp_norm
 
     target = _formation_for_gap(gap)                       # shape adapts to the opponent
@@ -2055,8 +2506,9 @@ def _predict_side_xi(name, year, before_utc, gap=0):
         if nn in unavailable or nn in used:
             continue
         pool[_bk_kr(p.get("position"))].append(p)
-    for b in pool:
-        pool[b].sort(key=lambda p: int(p["number"]) if str(p.get("number") or "").isdigit() else 99)
+    for b in pool:   # highest-rated available player first, then by shirt number
+        pool[b].sort(key=lambda p: (-ratings.get(_norm(p.get("name") or ""), 1.0),
+                                    int(p["number"]) if str(p.get("number") or "").isdigit() else 99))
     counts = [0, 0, 0, 0]
     for pl in xi:
         counts[_bk_abbr(pl.get("pos"))] += 1
@@ -2091,6 +2543,7 @@ def _predict_side_xi(name, year, before_utc, gap=0):
             break
     form = f"{target[1]}-{target[2]}-{target[3]}"
     players = xi + bench
+    cards = _team_player_cards(name, year)                 # cumulative card counts for display
     for pl in players:                                     # attach card counts (shown on pitch/bench)
         c = cards.get(_norm(pl.get("name") or ""), {})
         pl["y"], pl["r"] = c.get("y", 0), c.get("r", 0)
@@ -2292,6 +2745,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[warn] predict {mid}: {e}")
                 return self._json(200, {"available": False})
+        if path == "/api/model-params":
+            return self._json(200, {**model_params(), "tuning": len(_tuning) > 0})
         if path == "/api/accuracy":
             try:
                 res = dict(compute_accuracy())
@@ -2303,7 +2758,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/aipick":
             q = parse_qs(urlparse(self.path).query)
             mid = (q.get("id") or [""])[0]
-            provider = (q.get("p") or ["gemini"])[0]
+            provider = (q.get("p") or ["groq"])[0]
             if not mid:
                 return self._json(400, {"error": "missing id"})
             try:
@@ -2332,15 +2787,21 @@ class Handler(BaseHTTPRequestHandler):
             started = grade_ai_bg()
             return self._json(200, {"ok": True, "started": started})
         if path == "/api/refresh":
-            removed = 0
+            # Don't delete caches (that blanks the UI if a fetch fails). Instead force-revalidate
+            # live data: http_json overwrites on success and KEEPS the old data on failure.
+            season = str(CONFIG.get("season"))
+            for fn in (lambda: get_matches_espn(season, ttl=0),
+                       lambda: get_standings_espn(season, ttl=0)):
+                try:
+                    fn()
+                except Exception as e:
+                    print(f"[warn] refresh revalidate: {e}")
             try:
-                for f in os.listdir(CACHE_DIR):
-                    if f.endswith(".json"):
-                        os.remove(os.path.join(CACHE_DIR, f))
-                        removed += 1
-            except FileNotFoundError:
+                os.remove(_cache_file("accuracy"))   # recompute the scoreboard from preserved picks
+            except OSError:
                 pass
-            return self._json(200, {"ok": True, "removed": removed})
+            tune_model()                             # re-tune Elo x Score on the latest real results
+            return self._json(200, {"ok": True, "tuning": True})
         if path == "/api/save-edition":
             q = parse_qs(urlparse(self.path).query)
             year = (q.get("year") or [""])[0]
