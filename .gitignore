@@ -1,8 +1,24 @@
 .venv/
 __pycache__/
 build/
-dist/
-cache/
 logs/
 config.json
 .DS_Store
+
+# build artifact (rebuilt via pyinstaller)
+*.exe
+
+# Keep the stable cached data in git (country/player/past-match info, ChatGPT picks,
+# tuned model) so a fresh clone works offline. Skip the big auto-refetchable blobs and
+# the volatile/derived files (patterns must stand alone — no inline comments):
+#   img/         ~230MB photos (re-downloaded on demand)
+#   espn-sum-*   ~120MB raw summaries (re-fetched; finished ones also in match-final-*)
+#   accuracy     recomputed every few minutes
+#   modelpick-*  regenerated from the model on Refresh
+dist/cache/img/
+dist/cache/espn-sum-*.json
+dist/cache/accuracy.json
+dist/cache/modelpick-*.json
+
+# source-run cache (python server.py) — root only, not dist/cache
+/cache/
