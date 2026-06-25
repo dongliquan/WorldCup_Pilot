@@ -1,6 +1,6 @@
 {
-  "gemini_api_key": "<google-ai-studio-key (free tier) — enables the Gemini pick>",
-  "openai_api_key": "<openai-key (paid) — enables the ChatGPT pick>",
+  "groq_api_key": "<console.groq.com key (free) — ⚡ Groq pick, runs Llama 3.3>",
+  "openai_api_key": "<OpenAI key, or a GitHub token (ghp_…) for free GitHub Models — 💬 ChatGPT pick (GPT-4o)>",
   "competition": "WC",
   "season": 2026,
   "cache_ttl_seconds": 60,
