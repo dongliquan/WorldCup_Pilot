@@ -19,6 +19,7 @@ dist/cache/img/
 dist/cache/espn-sum-*.json
 dist/cache/accuracy.json
 dist/cache/modelpick-*.json
+dist/cache/advodds.json
 
 # source-run cache (python server.py) — root only, not dist/cache
 /cache/

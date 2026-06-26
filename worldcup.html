@@ -388,7 +388,7 @@
   .match-wrap { width: 100%; max-width: 1700px; margin: 0 auto; }
   .day-head { max-width: 1700px; margin-left: auto; margin-right: auto; }
   .acc { overflow: hidden; max-height: 0; transition: max-height .28s ease; }
-  .acc.open { max-height: 1400px; }
+  .acc.open { max-height: 4200px; }   /* roomy: venue+pred + match stats + subs + event timeline */
   .acc-inner {
     margin: 6px 0 4px; background: rgba(255,255,255,.03);
     border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
@@ -507,7 +507,9 @@
   .odd .k { font-size: 9px; color: var(--mute); display: block; letter-spacing: .04em; }
   .odd .v { font-family: var(--mono); font-weight: 800; font-size: 15px; color: var(--gold-soft); }
   .acc-sect { font-size: 11px; color: var(--gold); font-weight: 800; letter-spacing: .12em;
-    text-transform: uppercase; padding: 6px 16px 4px; }
+    text-transform: uppercase; padding: 6px 0 6px; margin: 4px 16px 10px;
+    border-bottom: 1px solid var(--line); }
+  .ms2-col .acc-sect { margin: 0 0 10px; }   /* align section title to the column's front edge */
   /* horizontal time-flow timeline (left = kickoff, right = full time) */
   .tl-h-scroll { display: flex; gap: 0; overflow-x: auto; padding: 10px 16px 18px;
     scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; position: relative; }
@@ -528,9 +530,79 @@
   .tle-min { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--gold-soft); }
   .tle-pl { font-size: 11.5px; font-weight: 600; text-align: center; line-height: 1.25;
     overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .tle.goal { border-color: rgba(233,196,106,.5); background: rgba(233,196,106,.08); }
-  .tle.goal .tle-pl { color: var(--gold-soft); font-weight: 700; }
+  .tle.goal { border-color: var(--gold); background: rgba(233,196,106,.18);
+    box-shadow: 0 0 0 1px rgba(233,196,106,.4), 0 2px 10px rgba(233,196,106,.22); }
+  .tle.goal .tle-ic { font-size: 17px; }
+  .tle.goal .tle-pl { color: var(--gold); font-weight: 800; }
   .tle.clk { cursor: pointer; }
+  .tle .sub-in { color: #34c759; font-weight: 700; font-size: 10.5px; }
+  .tle .sub-out { color: var(--mute); font-size: 10px; }
+  /* match stats (two-team comparison) */
+  .ms2 { display: grid; grid-template-columns: minmax(0,4fr) minmax(0,4fr) minmax(0,2fr); gap: 0; padding: 4px 16px 12px; align-items: start; margin: 0; }
+  .ms-empty { font-size: 12px; color: var(--mute); padding: 8px 2px; }
+  /* recent form + head-to-head */
+  .fdot { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+    font-size: 9px; font-weight: 800; color: #fff; flex: 0 0 auto; }
+  .fdot.w { background: #34c759; } .fdot.d { background: #9aa0a6; } .fdot.l { background: #ef4444; }
+  .mform { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .form-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .form-tm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .form-dots { display: flex; gap: 4px; flex: 0 0 auto; }
+  .mh2h { display: flex; flex-direction: column; gap: 5px; }
+  .h2h-sum { font-size: 12px; margin-bottom: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .h2h-sum-tm { font-weight: 700; }
+  .h2h-w { color: #34c759; font-weight: 700; } .h2h-d { color: var(--mute); font-weight: 700; } .h2h-l { color: #ef4444; font-weight: 700; }
+  .h2h-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .h2h-row { display: flex; align-items: center; gap: 8px; }
+  .h2h-dt { font-family: var(--mono); font-size: 10px; color: var(--mute); min-width: 30px; flex: 0 0 auto; }
+  .h2h-sc { font-family: var(--mono); font-weight: 700; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ms2-col { min-width: 0; }
+  .ms2-col:not(:last-child) { padding-right: 20px; }
+  .ms2-col:not(:first-child) { border-left: 1px solid var(--line); padding-left: 20px; }
+  @media (max-width: 860px){ .ms2 { grid-template-columns: 1fr; }
+    .ms2-col { border-left: 0 !important; padding-left: 0 !important; padding-right: 0 !important; } }
+  .mstats { display: flex; flex-direction: column; gap: 7px; }
+  /* substitutions with photos */
+  .msubs2 { display: flex; flex-direction: column; gap: 8px; }
+  .sub2-tcol { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .sub2-team { font-size: 11px; font-weight: 800; color: var(--gold-soft); margin: 2px 0; }
+  .sub2 { display: grid; grid-template-columns: 34px minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; font-size: 12px; }
+  .sub2-min { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
+  .sub2-p { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .sub2-ar { color: var(--mute); font-size: 11px; }
+  .sub2-img, .sub2-av { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; object-fit: cover; object-position: center top; }
+  .sub2-av { display: grid; place-items: center; font-size: 9px; font-weight: 800; background: #0d3a20; color: #fff; }
+  .sub2-p.in .sub2-nm { color: #34c759; font-weight: 600; }
+  .sub2-p.out .sub2-nm { color: var(--mute); }
+  .sub2-nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .sub2-rsn { flex: 0 0 auto; font-size: 11px; }
+  .sub2-p.clk { cursor: pointer; border-radius: 6px; }
+  .sub2-p.clk:hover { background: rgba(255,255,255,.06); }
+  .sub2-p.clk:hover .sub2-nm { text-decoration: underline; }
+  /* multilingual player-name tooltip */
+  .pn-tip { position: fixed; z-index: 99999; display: none; pointer-events: none; max-width: 260px;
+    background: rgba(18,22,28,.98); color: #fff; border: 1px solid rgba(255,255,255,.18); border-radius: 8px;
+    padding: 7px 11px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+  .pn-tip.on { display: block; }
+  .pn-row { display: flex; gap: 9px; white-space: nowrap; line-height: 1.55; }
+  .pn-l { color: rgba(255,255,255,.5); font-family: var(--mono); font-size: 9.5px; min-width: 16px; font-weight: 700; }
+  .ms-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .ms-v { font-family: var(--mono); font-weight: 800; min-width: 48px; flex: 0 0 auto; }
+  .ms-v.r { text-align: right; }
+  .ms-mid { flex: 1 1 auto; min-width: 0; }
+  .ms-l { text-align: center; font-size: 10.5px; color: var(--mute); margin-bottom: 3px; }
+  .ms-bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; background: rgba(127,127,127,.18); }
+  .ms-bar i { display: block; height: 100%; background: var(--gold-soft); }
+  .ms-bar i.a { background: #5b9cff; }
+  /* substitutions */
+  .msubs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+  .msub-col { display: flex; flex-direction: column; gap: 6px; }
+  .sub-row { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  .sub-row.r { flex-direction: row-reverse; text-align: right; }
+  .sub-min { font-family: var(--mono); font-size: 10px; color: var(--gold-soft); flex: 0 0 auto; min-width: 26px; }
+  .sub-io { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+  .sub-io .in { color: #34c759; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub-io .out { color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tle.clk:hover { border-color: var(--gold); background: rgba(233,196,106,.16); }
   .tle-play { font-size: 9px; color: var(--gold); }
   .og-tag { font-size: 9px; font-weight: 800; color: #ff8a7a; background: rgba(239,68,68,.18);
@@ -566,9 +638,11 @@
 
   /* ===== group view ===== */
   .groups {
-    display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr));
     max-width: 1500px; margin: 14px auto 0;
   }
+  @media (max-width: 1000px){ .groups { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 640px){ .groups { grid-template-columns: 1fr; } }
   .gcard { background: var(--glass); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
   .gcard .gh {
     display: flex; align-items: center; gap: 10px; padding: 12px 16px;
@@ -584,14 +658,40 @@
   table.stand { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   table.stand th {
     text-align: center; color: var(--mute); font-weight: 700; font-size: 10px;
-    padding: 8px 4px; letter-spacing: .04em; border-bottom: 1px solid var(--line);
+    padding: 8px 7px; letter-spacing: .04em; border-bottom: 1px solid var(--line);
   }
   table.stand th.team-col, table.stand td.team-col { text-align: left; padding-left: 14px; }
-  table.stand td { text-align: center; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  table.stand td { text-align: center; padding: 8px 7px; border-bottom: 1px solid rgba(255,255,255,.05); }
   table.stand tr:last-child td { border-bottom: 0; }
+  .groups-note { max-width: 1500px; margin: 12px auto 0; padding: 0 4px; font-size: 11px; color: var(--mute); line-height: 1.6; }
+  .groups-note .gn-legend { margin-bottom: 4px; }
+  .groups-note .gn-q { color: #34c759; } .groups-note .gn-q3 { color: #e9b84a; } .groups-note .gn-x { color: var(--text); }
+  .groups-note .gn-t { font-weight: 700; color: var(--dim); margin-top: 4px; }
+  .groups-note .gn-sub { font-weight: 600; color: var(--dim); margin-top: 8px; }
+  .groups-note .gn-rule { margin: 4px 0 0; padding-left: 22px; }
+  .groups-note .gn-rule li { margin: 1px 0; }
+  .adv-prob { margin-left: 6px; font-size: 10px; font-weight: 800; color: #e9b84a; font-family: var(--mono); }
+  table.stand tr.elim { opacity: .7; }
+  table.stand tr.elim td.pos { box-shadow: inset 3px 0 0 var(--text); }   /* black bar = eliminated */
+  .elim-tag { margin-left: 6px; font-size: 9px; font-weight: 800; color: #ef4444; }
+  .thirds { max-width: 760px; margin: 18px auto 0; }
+  .thirds-t td.tg { font-family: var(--mono); color: var(--gold-soft); font-weight: 700; }
+  .thirds-t td.tcd { font-size: 10px; white-space: nowrap; }
+  .thirds-t td.tpr { font-family: var(--mono); font-weight: 800; color: #e9b84a; }
+  .thirds-t td.tpp { font-family: var(--mono); font-size: 11px; color: var(--mute); }
+  .thirds-t td.tpp3, .thirds-t th.tpp3 { color: var(--text);
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border); }  /* 3rd-place = the focus, flanked by dividers */
+  .thirds-t td.p3full { font-weight: 800; }                        /* only 3rd = 100% is bold */
+  .thirds-t td.tppx { color: #ef4444; }                            /* 4th = out */
+  .thirds-note { max-width: 720px; margin: 6px auto 0; font-size: 10px; color: var(--mute); text-align: center; }
+  .thirds-t td.tfx { font-size: 10px; font-weight: 700; }
+  .thirds-t td.tfx.fx { color: var(--gold-soft); }
+  .thirds-t td.tfx.pv { color: var(--mute); }
+  table.stand td.gkey { font-weight: 800; color: var(--text); }   /* W, GF — key for advancement scenarios */
+  table.stand th.gkey { color: var(--gold-soft); }
   table.stand tr.qual td.pos { box-shadow: inset 3px 0 0 #34c759; }    /* top 2 → auto advance */
   table.stand tr.qual3 td.pos { box-shadow: inset 3px 0 0 #e9b84a; }   /* 3rd among best-8 → advance */
-  table.stand .pts { font-family: var(--mono); font-weight: 800; color: var(--gold-soft); }
+  table.stand .pts { font-family: var(--mono); font-weight: 900; font-size: 13px; color: var(--gold-soft); }
   table.stand .pos { color: var(--mute); font-family: var(--mono); }
   .gteam { display: flex; align-items: center; gap: 9px; cursor: pointer; }
   .gteam:hover .gnm { color: var(--gold-soft); }
@@ -866,7 +966,9 @@
   .gmini-lg .lg.lock::before { display: none; }
   .gmini-n { font-size: 9.5px; color: var(--mute); margin-top: 5px; }
   .gmini-scroll { overflow-x: auto; }
-  .gmini-t .gmwdl, .gmini-t .gmgg, .gmini-t .gmnx { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .gmini-t .gmwdl, .gmini-t .gmggg, .gmini-t .gmgg, .gmini-t .gmnx { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+  .gmini-t .gmgd { font-weight: 800; color: var(--text); }
+  .gmini-t .gn { display: inline-block; min-width: 18px; text-align: right; }   /* align digits in W D L / GF GA GD */
   .gmini-t .gmnx { color: var(--mute); }
   .gmini-t .gmlock { font-size: 9px; }
   .gmini-t .gmcd { font-size: 10px; white-space: nowrap; }
@@ -944,10 +1046,10 @@ const edLogo = () => { const e = document.getElementById("edEmblem"); return (e 
 // route remote photos through the local image cache (download once, served from disk)
 const imgUrl = u => (u && /^https?:/.test(u)) ? "/img?u="+encodeURIComponent(u) : (u||"");
 const I18N = {
- en:{loading:"Loading…",loadingYear:"Loading {y}…",loadFail:"Failed to load",teamLoading:"Loading team…",teamFail:"Couldn't load team info.<br>Please try again.",close:"Close",standingsLoading:"Loading standings…",noStandings:"No standings data",noMatchesDay:"No matches on this day",noSchedule:"No matches",matches:"{n} matches",expandAll:"Expand all",collapseAll:"Collapse all",bracketPending:"The knockout bracket is set after the group stage",matchLoading:"Loading match info…",matchFail:"Couldn't load info",noEventsYet:"No events recorded yet",noMatchDetail:"Match details not found",events:"Events",eventsHint:"← match time →",noRecord:"none",highlight:"Highlight",playGoal:"Play goal highlight",schedule:"Schedule",groups:"Groups",bracket:"Bracket",tabAccuracy:"Accuracy",accPredictor:"Predictor",accOutcome:"Outcome",accExact:"Exact score",accGradeAI:"Grade AI picks",accGrading:"Grading…",accNote:"Outcome = winner correct. AI picks (Gemini/ChatGPT) count only matches already graded — tap 'Grade AI picks' to fill the rest.",accNoData:"No finished matches yet",accByRound:"By round",roundN:"Round {n}",localTime:"Local time",tzHint:"Checked: venue local time / Unchecked: KST",editionTitle:"World Cup edition",themeChange:"Change theme",toDark:"Switch to dark mode",toLight:"Switch to light mode",refresh:"Refresh",alertOn:"Turn off alerts",alertOff:"Get alerts",alertMatch:"Get match alerts",saved:"Saved",saving:"Saving…",champion:"Champion",runnerUp:"Runner-up",third:"3rd",goalsN:"({n} goals)",final:"Final",opening:"Opening Ceremony",finalFull:"Final (full)",finalHl:"Final H/L",live:"LIVE",finished:"FT",liveHT:"HT",liveET:"ET",tbd:"TBD",thirdPlace:"3rd place",st32:"Round of 32",st16:"Round of 16",stQF:"Quarter-finals",stSF:"Semi-finals",capacity:"Capacity",seatsUnit:"",surface:"Surface",attendance:"Attendance",temp:"Temp",humidity:"Humidity",odds:"Odds",home:"Home",draw:"Draw",away:"Away",firstHalf:"1st",secondHalf:"2nd",extra:"ET",thTeam:"Team",thP:"P",thW:"W",thD:"D",thL:"L",thGD:"GD",thPts:"Pts",continent:"Confederation",capital:"Capital",population:"Population",popUnit:"",area:"Area",founded:"Founded",wcHistory:"World Cup history",scheduleTitle:"Schedule",squad:"Squad",coach:"Coach",apps:"Appearances",other:"Other",bestResult:"Best result",timesN:"{n}",appsN:"{n}",youngest:"Youngest",oldest:"Oldest",unavail:"Out",injured:"Injured",club:"Club",lookup:"Looking up…",position:"Position",wcGoals:"Goals (this WC)",wcGoalsAll:"Goals (all WCs)",cardYellow:"Yellow cards",cardRed:"Red cards",number:"No.",ageL:"Age",birthday:"Birthday",height:"Height",weight:"Weight",birthplace:"Birthplace",outOfSquad:"Unavailable",ageN:"{n}",upcoming:"Upcoming",groupN:"Group {g}",tieNote:"Pts · GD · GF · head-to-head",advCol:"R32",advAuto:"Through",advPo:"3rd✓",adv3In:"3rd ✓",adv3Out:"3rd ✗",thWDL:"W-D-L",thGFGA:"GF:GA",thNext:"Next",clinched:"Clinched",thGF:"GF",thGA:"GA",thCard:"Cards",groupStage:"Group stage",debut:"Debut",place4:"4th",unbeaten:"unbeaten",zaire:"Zaire",appPredict:"Elo x Score",predicting:"Analyzing…",factorForm:"Form",factorInj:"Injuries",factorCards:"Cards",factorPts:"Points",factorGd:"GoalDiff",factorHome:"Home",predNote:"From FIFA ranking + this tournament's form, injuries & cards",today:"TODAY",oddsRef:"Betting odds (ESPN)",predScore:"Likely score",claudePick:"Claude's pick",cDiffer:"differs from model",cReasonEven:"Too close to call — a slight edge.",cReasonStar:"{who} is in red-hot form.",cReasonPower:"Tournament pedigree in the big games.",cReasonForm:"Riding strong momentum.",cReasonHome:"Home advantage tips it.",cReasonStrength:"The stronger, deeper side.",cConfLbl:"win prob",cConfHint:"The model's estimated probability this pick is correct",aiNoKey:"Add {k} to config.json to enable",aiFail:"Couldn't reach the model",aiQuota:"Rate/usage limit — auto-retry shortly",wind:"Wind",alt:"Altitude",lineup:"Lineup",predLineup:"Predicted XI",predLineupNote:"estimate — out injured/suspended players, shape vs opponent",lineupOut:"Unavailable",suspended:"Suspended",startingXI:"Starting XI",subs:"Substitutes",strength:"Strength",keyPlayers:"Top scorers",reset:"Reset",calibration:"Calibration",notifKickoff:"⚽ Kickoff",notifGoal:"⚽ Goal!",notifGoalBy:"⚽ {who} — Goal!",notifFT:"🏁 Full time"},
- ko:{loading:"불러오는 중…",loadingYear:"{y} 불러오는 중…",loadFail:"불러오기 실패",teamLoading:"팀 정보 불러오는 중…",teamFail:"팀 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.",close:"닫기",standingsLoading:"조별 순위 불러오는 중…",noStandings:"조별 순위 데이터가 없습니다",noMatchesDay:"이 날짜에 경기가 없습니다",noSchedule:"경기 일정이 없습니다",matches:"{n} 경기",expandAll:"전경기 펼치기",collapseAll:"전경기 접기",bracketPending:"토너먼트 대진은 조별리그 종료 후 확정됩니다",matchLoading:"경기 정보 불러오는 중…",matchFail:"정보를 불러올 수 없습니다",noEventsYet:"아직 기록된 이벤트가 없습니다",noMatchDetail:"이 경기의 상세 정보를 찾지 못했습니다",events:"이벤트",eventsHint:"← 경기 시간 →",noRecord:"기록 없음",highlight:"하이라이트",playGoal:"골 하이라이트 재생",schedule:"일정",groups:"조별",bracket:"대진표",tabAccuracy:"예측성적",accPredictor:"예측기",accOutcome:"승부 적중",accExact:"정확 스코어",accGradeAI:"AI 채점",accGrading:"채점 중…",accNote:"승부 적중 = 승자 맞춤. AI(Gemini/ChatGPT)는 이미 채점된 경기만 집계됩니다 — 'AI 채점'을 누르면 나머지를 채웁니다.",accNoData:"아직 종료된 경기가 없습니다",accByRound:"차수별 결과",roundN:"{n}차전",localTime:"현지시간",tzHint:"체크: 경기장 현지시간 / 해제: 한국시간",editionTitle:"월드컵 회차",themeChange:"테마 변경",toDark:"다크 모드로 전환",toLight:"라이트 모드로 전환",refresh:"새로고침",alertOn:"알림 끄기",alertOff:"알림 받기",alertMatch:"경기 알림 받기",saved:"저장됨",saving:"저장 중…",champion:"우승",runnerUp:"준우승",third:"3위",goalsN:"({n}골)",final:"결승",opening:"개막식",finalFull:"결승 풀경기",finalHl:"결승 H/L",live:"LIVE",finished:"종료",liveHT:"하프타임",liveET:"연장",tbd:"미정",thirdPlace:"3·4위전",st32:"32강",st16:"16강",stQF:"8강",stSF:"4강",capacity:"수용인원",seatsUnit:"석",surface:"표면",attendance:"관중",temp:"온도",humidity:"습도",odds:"배당",home:"홈",draw:"무",away:"원정",firstHalf:"전반",secondHalf:"후반",extra:"연장",thTeam:"팀",thP:"경기",thW:"승",thD:"무",thL:"패",thGD:"득실",thPts:"승점",continent:"대륙",capital:"수도",population:"인구",popUnit:"명",area:"면적",founded:"협회창설",wcHistory:"월드컵 역대 성적",scheduleTitle:"일정",squad:"선수단",coach:"감독",apps:"본선 출전",other:"그 외",bestResult:"최고 성적",timesN:"{n}회",appsN:"{n}회",youngest:"최연소",oldest:"최고령",unavail:"출전불가",injured:"부상",club:"소속팀",lookup:"조회 중…",position:"포지션",wcGoals:"이번 월드컵 득점",wcGoalsAll:"통산 월드컵 득점",cardYellow:"경고(옐로)",cardRed:"퇴장(레드)",number:"등번호",ageL:"나이",birthday:"생일",height:"신장",weight:"체중",birthplace:"출생지",outOfSquad:"출전 불가",ageN:"{n}세",upcoming:"예정",groupN:"{g}조",tieNote:"승점·득실·다득점·승자승 순",advCol:"32강",advAuto:"진출",advPo:"진출권",adv3In:"3위 진출권",adv3Out:"3위 탈락권",thWDL:"승무패",thGFGA:"득실점",thNext:"다음",clinched:"진출확정",thGF:"득점",thGA:"실점",thCard:"카드",groupStage:"조별리그",debut:"첫 출전",place4:"4위",unbeaten:"무패",zaire:"자이르",appPredict:"Elo x Score",predicting:"분석 중…",factorForm:"최근",factorInj:"부상",factorCards:"카드",factorPts:"승점",factorGd:"득실",factorHome:"홈",predNote:"FIFA 랭킹 + 이번 대회 성적·부상·카드 종합",today:"오늘",oddsRef:"베팅 배당 (ESPN)",predScore:"예상 스코어",claudePick:"Claude 예측",cDiffer:"모델과 다른 의견",cReasonEven:"막상막하 — 근소한 우위.",cReasonStar:"{who}의 폼이 절정.",cReasonPower:"빅매치에 강한 전통 강호.",cReasonForm:"상승세를 타고 있음.",cReasonHome:"홈 이점이 승부를 가른다.",cReasonStrength:"전력·뎁스에서 우위.",cConfLbl:"적중확률",cConfHint:"이 픽이 맞을 것으로 모델이 추정한 확률",aiNoKey:"config.json에 {k} 추가하면 활성화",aiFail:"모델 호출 실패",aiQuota:"요청 한도 초과 (잠시 후 자동 재시도)",wind:"풍속",alt:"고도",lineup:"라인업",predLineup:"예상 라인업",predLineupNote:"추정 — 부상·출장정지 제외, 상대 맞춤 포메이션",lineupOut:"결장",suspended:"출장정지",startingXI:"선발",subs:"교체",strength:"강도",keyPlayers:"주요 득점",reset:"초기화",calibration:"보정",notifKickoff:"⚽ 경기 시작",notifGoal:"⚽ 골!",notifGoalBy:"⚽ {who} 골!",notifFT:"🏁 경기 종료"},
- zh:{loading:"加载中…",loadingYear:"加载 {y}…",loadFail:"加载失败",teamLoading:"加载球队…",teamFail:"无法加载球队信息。<br>请稍后重试。",close:"关闭",standingsLoading:"加载排名…",noStandings:"暂无排名数据",noMatchesDay:"当天没有比赛",noSchedule:"暂无赛程",matches:"{n} 场",expandAll:"展开全部",collapseAll:"收起全部",bracketPending:"淘汰赛对阵将在小组赛结束后确定",matchLoading:"加载比赛信息…",matchFail:"无法加载信息",noEventsYet:"暂无事件记录",noMatchDetail:"未找到该场比赛详情",events:"事件",eventsHint:"← 比赛时间 →",noRecord:"无记录",highlight:"集锦",playGoal:"播放进球集锦",schedule:"赛程",groups:"小组",bracket:"对阵表",tabAccuracy:"预测战绩",accPredictor:"预测器",accOutcome:"胜负命中",accExact:"精确比分",accGradeAI:"AI 评分",accGrading:"评分中…",accNote:"胜负命中=猜对胜方。AI(Gemini/ChatGPT)仅统计已评分的比赛 — 点击'AI 评分'补全其余。",accNoData:"暂无已结束的比赛",accByRound:"分轮次",roundN:"第{n}轮",localTime:"当地时间",tzHint:"勾选：球场当地时间 / 取消：韩国时间",editionTitle:"世界杯届次",themeChange:"切换主题",toDark:"切换到深色模式",toLight:"切换到浅色模式",refresh:"刷新",alertOn:"关闭提醒",alertOff:"开启提醒",alertMatch:"开启比赛提醒",saved:"已保存",saving:"保存中…",champion:"冠军",runnerUp:"亚军",third:"季军",goalsN:"({n}球)",final:"决赛",opening:"开幕式",finalFull:"决赛全场",finalHl:"决赛集锦",live:"LIVE",finished:"完场",liveHT:"中场",liveET:"加时",tbd:"待定",thirdPlace:"三四名决赛",st32:"32强",st16:"16强",stQF:"8强",stSF:"4强",capacity:"容量",seatsUnit:"座",surface:"场地",attendance:"观众",temp:"气温",humidity:"湿度",odds:"赔率",home:"主",draw:"平",away:"客",firstHalf:"上半场",secondHalf:"下半场",extra:"加时",thTeam:"球队",thP:"场",thW:"胜",thD:"平",thL:"负",thGD:"净胜",thPts:"积分",continent:"大洲",capital:"首都",population:"人口",popUnit:"人",area:"面积",founded:"成立",wcHistory:"世界杯历史战绩",scheduleTitle:"赛程",squad:"球员名单",coach:"主教练",apps:"参赛次数",other:"其他",bestResult:"最佳成绩",timesN:"{n}次",appsN:"{n}次",youngest:"最年轻",oldest:"最年长",unavail:"不可出场",injured:"伤病",club:"所属球队",lookup:"查询中…",position:"位置",wcGoals:"本届进球",wcGoalsAll:"世界杯总进球",cardYellow:"黄牌",cardRed:"红牌",number:"号码",ageL:"年龄",birthday:"生日",height:"身高",weight:"体重",birthplace:"出生地",outOfSquad:"无法出场",ageN:"{n}岁",upcoming:"未赛",groupN:"{g}组",tieNote:"积分·净胜·进球·相互成绩",advCol:"32强",advAuto:"晋级",advPo:"或晋级",adv3In:"第3晋级",adv3Out:"第3出局",thWDL:"胜平负",thGFGA:"进:失",thNext:"下轮",clinched:"已晋级",thGF:"进球",thGA:"失球",thCard:"牌",groupStage:"小组赛",debut:"首次参赛",place4:"第4名",unbeaten:"不败",zaire:"扎伊尔",appPredict:"Elo x Score",predicting:"分析中…",factorForm:"状态",factorInj:"伤病",factorCards:"牌",factorPts:"积分",factorGd:"净胜",factorHome:"主场",predNote:"综合 FIFA 排名 + 本届成绩·伤病·红黄牌",today:"今天",oddsRef:"博彩赔率 (ESPN)",predScore:"预测比分",claudePick:"Claude 预测",cDiffer:"与模型不同",cReasonEven:"势均力敌 — 略占上风。",cReasonStar:"{who} 状态火热。",cReasonPower:"大赛底蕴深厚。",cReasonForm:"势头正旺。",cReasonHome:"主场优势占先。",cReasonStrength:"实力与厚度更胜一筹。",cConfLbl:"命中概率",cConfHint:"模型估计该预测正确的概率",aiNoKey:"在 config.json 添加 {k} 即可启用",aiFail:"无法连接模型",aiQuota:"请求超限 (稍后自动重试)",wind:"风速",alt:"海拔",lineup:"阵容",predLineup:"预测阵容",predLineupNote:"预估 — 已排除伤停球员，按对手调整阵型",lineupOut:"缺阵",suspended:"停赛",startingXI:"首发",subs:"替补",strength:"实力",keyPlayers:"主要射手",reset:"重置",calibration:"校准",notifKickoff:"⚽ 开球",notifGoal:"⚽ 进球！",notifGoalBy:"⚽ {who} 进球！",notifFT:"🏁 完场"},
- ja:{loading:"読み込み中…",loadingYear:"{y} を読み込み中…",loadFail:"読み込み失敗",teamLoading:"チーム情報を読み込み中…",teamFail:"チーム情報を読み込めませんでした。<br>後ほど再試行してください。",close:"閉じる",standingsLoading:"順位を読み込み中…",noStandings:"順位データがありません",noMatchesDay:"この日は試合がありません",noSchedule:"試合がありません",matches:"{n} 試合",expandAll:"全試合を展開",collapseAll:"全試合を折りたたむ",bracketPending:"決勝トーナメントの組み合わせはグループステージ終了後に確定します",matchLoading:"試合情報を読み込み中…",matchFail:"情報を読み込めません",noEventsYet:"まだイベントの記録がありません",noMatchDetail:"この試合の詳細が見つかりません",events:"イベント",eventsHint:"← 試合時間 →",noRecord:"記録なし",highlight:"ハイライト",playGoal:"ゴールハイライト再生",schedule:"日程",groups:"グループ",bracket:"トーナメント",tabAccuracy:"予測成績",accPredictor:"予測者",accOutcome:"勝敗的中",accExact:"スコア的中",accGradeAI:"AI採点",accGrading:"採点中…",accNote:"勝敗的中=勝者を当てた。AI(Gemini/ChatGPT)は採点済みの試合のみ集計 — 「AI採点」で残りを補完。",accNoData:"まだ終了した試合がありません",accByRound:"節別の結果",roundN:"第{n}節",localTime:"現地時間",tzHint:"チェック：会場の現地時間 / 解除：韓国時間",editionTitle:"ワールドカップ大会",themeChange:"テーマ変更",toDark:"ダークモードに切替",toLight:"ライトモードに切替",refresh:"更新",alertOn:"通知オフ",alertOff:"通知オン",alertMatch:"試合通知を受け取る",saved:"保存済み",saving:"保存中…",champion:"優勝",runnerUp:"準優勝",third:"3位",goalsN:"({n}点)",final:"決勝",opening:"開会式",finalFull:"決勝フル",finalHl:"決勝H/L",live:"LIVE",finished:"終了",liveHT:"ハーフタイム",liveET:"延長",tbd:"未定",thirdPlace:"3位決定戦",st32:"ベスト32",st16:"ベスト16",stQF:"準々決勝",stSF:"準決勝",capacity:"収容人数",seatsUnit:"席",surface:"ピッチ",attendance:"観客",temp:"気温",humidity:"湿度",odds:"オッズ",home:"ホーム",draw:"分",away:"アウェイ",firstHalf:"前半",secondHalf:"後半",extra:"延長",thTeam:"チーム",thP:"試",thW:"勝",thD:"分",thL:"敗",thGD:"得失",thPts:"勝点",continent:"大陸",capital:"首都",population:"人口",popUnit:"人",area:"面積",founded:"創設",wcHistory:"W杯成績",scheduleTitle:"日程",squad:"メンバー",coach:"監督",apps:"本大会出場",other:"その他",bestResult:"最高成績",timesN:"{n}回",appsN:"{n}回",youngest:"最年少",oldest:"最年長",unavail:"出場不可",injured:"負傷",club:"所属",lookup:"照会中…",position:"ポジション",wcGoals:"今大会の得点",wcGoalsAll:"W杯通算得点",cardYellow:"警告",cardRed:"退場",number:"背番号",ageL:"年齢",birthday:"生年月日",height:"身長",weight:"体重",birthplace:"出身地",outOfSquad:"出場不可",ageN:"{n}歳",upcoming:"予定",groupN:"{g}組",tieNote:"勝点·得失·得点·当該対戦",advCol:"32強",advAuto:"突破",advPo:"通過圏",adv3In:"3位通過",adv3Out:"3位敗退",thWDL:"勝分敗",thGFGA:"得:失",thNext:"次戦",clinched:"突破確定",thGF:"得点",thGA:"失点",thCard:"カード",groupStage:"グループステージ",debut:"初出場",place4:"4位",unbeaten:"無敗",zaire:"ザイール",appPredict:"Elo x Score",predicting:"分析中…",factorForm:"調子",factorInj:"負傷",factorCards:"カード",factorPts:"勝点",factorGd:"得失",factorHome:"ホーム",predNote:"FIFAランク+今大会の成績・負傷・カードを総合",today:"今日",oddsRef:"ブックメーカー (ESPN)",predScore:"予想スコア",claudePick:"Claude 予想",cDiffer:"モデルと異なる",cReasonEven:"互角 — わずかに優位。",cReasonStar:"{who} が絶好調。",cReasonPower:"大舞台に強い伝統国。",cReasonForm:"勢いに乗る。",cReasonHome:"ホームの利が後押し。",cReasonStrength:"地力と層で上回る。",cConfLbl:"的中確率",cConfHint:"この予想が当たるとモデルが推定する確率",aiNoKey:"config.json に {k} を追加で有効化",aiFail:"モデルに接続できません",aiQuota:"リクエスト上限 (まもなく自動再試行)",wind:"風速",alt:"標高",lineup:"スタメン",predLineup:"予想スタメン",predLineupNote:"推定 — 負傷・出場停止を除外、相手に応じた布陣",lineupOut:"欠場",suspended:"出場停止",startingXI:"先発",subs:"控え",strength:"強さ",keyPlayers:"得点者",reset:"リセット",calibration:"補正",notifKickoff:"⚽ キックオフ",notifGoal:"⚽ ゴール！",notifGoalBy:"⚽ {who} ゴール！",notifFT:"🏁 試合終了"},
+ en:{loading:"Loading…",loadingYear:"Loading {y}…",loadFail:"Failed to load",teamLoading:"Loading team…",teamFail:"Couldn't load team info.<br>Please try again.",close:"Close",standingsLoading:"Loading standings…",noStandings:"No standings data",noMatchesDay:"No matches on this day",noSchedule:"No matches",matches:"{n} matches",expandAll:"Expand all",collapseAll:"Collapse all",bracketPending:"The knockout bracket is set after the group stage",matchLoading:"Loading match info…",matchFail:"Couldn't load info",noEventsYet:"No events recorded yet",noMatchDetail:"Match details not found",events:"Events",eventsHint:"← match time →",noRecord:"none",highlight:"Highlight",playGoal:"Play goal highlight",schedule:"Schedule",groups:"Groups",bracket:"Bracket",tabAccuracy:"Accuracy",accPredictor:"Predictor",accOutcome:"Outcome",accExact:"Exact score",accGradeAI:"Grade AI picks",accGrading:"Grading…",accNote:"Outcome = winner correct. AI picks (Gemini/ChatGPT) count only matches already graded — tap 'Grade AI picks' to fill the rest.",accNoData:"No finished matches yet",accByRound:"By round",roundN:"Round {n}",localTime:"Local time",tzHint:"Checked: venue local time / Unchecked: KST",editionTitle:"World Cup edition",themeChange:"Change theme",toDark:"Switch to dark mode",toLight:"Switch to light mode",refresh:"Refresh",alertOn:"Turn off alerts",alertOff:"Get alerts",alertMatch:"Get match alerts",saved:"Saved",saving:"Saving…",champion:"Champion",runnerUp:"Runner-up",third:"3rd",goalsN:"({n} goals)",final:"Final",opening:"Opening Ceremony",finalFull:"Final (full)",finalHl:"Final H/L",live:"LIVE",finished:"FT",liveHT:"HT",liveET:"ET",tbd:"TBD",thirdPlace:"3rd place",st32:"Round of 32",st16:"Round of 16",stQF:"Quarter-finals",stSF:"Semi-finals",capacity:"Capacity",seatsUnit:"",surface:"Surface",attendance:"Attendance",temp:"Temp",humidity:"Humidity",odds:"Odds",home:"Home",draw:"Draw",away:"Away",firstHalf:"1st",secondHalf:"2nd",extra:"ET",thTeam:"Team",thP:"P",thW:"W",thD:"D",thL:"L",thGD:"GD",thPts:"Pts",continent:"Confederation",capital:"Capital",population:"Population",popUnit:"",area:"Area",founded:"Founded",wcHistory:"World Cup history",scheduleTitle:"Schedule",squad:"Squad",coach:"Coach",apps:"Appearances",other:"Other",bestResult:"Best result",timesN:"{n}",appsN:"{n}",youngest:"Youngest",oldest:"Oldest",unavail:"Out",injured:"Injured",club:"Club",lookup:"Looking up…",position:"Position",wcGoals:"Goals (this WC)",wcGoalsAll:"Goals (all WCs)",cardYellow:"Yellow cards",cardRed:"Red cards",number:"No.",ageL:"Age",birthday:"Birthday",height:"Height",weight:"Weight",birthplace:"Birthplace",outOfSquad:"Unavailable",ageN:"{n}",upcoming:"Upcoming",groupN:"Group {g}",tieNote:"Pts · GD · GF · head-to-head",advCol:"R32",advAuto:"Through",advPo:"3rd✓",adv3In:"3rd ✓",adv3Out:"3rd ✗",thWDL:"W D L",thGFGA:"GF:GA",thNext:"Next",clinched:"Clinched",thGF:"GF",thGA:"GA",thGGG:"GF GA GD",thCard:"Cards",provisional:"provisional",eliminated:"Out",fixed:"Fixed",thFixed:"Status",thirdRule:"Round of 32 = top 2 of each group + the 8 best 3rd-placed teams. 3rd-place ranking (FIFA):",thirdsTitle:"R32 contenders (excl. qualified & eliminated)",thirdsNote:"Top 2 = auto-advance · 3rd = 8 best go through · 4th = out. Recomputed when a match finishes.",advFormat:"Round of 32 = top 2 of each group + the 8 best 3rd-placed teams.",rankGroupTitle:"① Within-Group Ranking — same group → head-to-head applies (FIFA 2026):",rankThirdTitle:"② Cross-Group 3rd-Place Ranking — different groups → no head-to-head:",groupStage:"Group stage",debut:"Debut",place4:"4th",unbeaten:"unbeaten",zaire:"Zaire",appPredict:"Elo x Score",predicting:"Analyzing…",factorForm:"Form",factorInj:"Injuries",factorCards:"Cards",factorPts:"Points",factorGd:"GoalDiff",factorHome:"Home",predNote:"From FIFA ranking + this tournament's form, injuries & cards",today:"TODAY",oddsRef:"Betting odds (ESPN)",predScore:"Likely score",claudePick:"Claude's pick",cDiffer:"differs from model",cReasonEven:"Too close to call — a slight edge.",cReasonStar:"{who} is in red-hot form.",cReasonPower:"Tournament pedigree in the big games.",cReasonForm:"Riding strong momentum.",cReasonHome:"Home advantage tips it.",cReasonStrength:"The stronger, deeper side.",cConfLbl:"win prob",cConfHint:"The model's estimated probability this pick is correct",aiNoKey:"Add {k} to config.json to enable",aiFail:"Couldn't reach the model",aiQuota:"Rate/usage limit — auto-retry shortly",wind:"Wind",alt:"Altitude",lineup:"Lineup",predLineup:"Predicted XI",predLineupNote:"estimate — out injured/suspended players, shape vs opponent",lineupOut:"Unavailable",suspended:"Suspended",startingXI:"Starting XI",subs:"Substitutes",strength:"Strength",keyPlayers:"Top scorers",reset:"Reset",calibration:"Calibration",notifKickoff:"⚽ Kickoff",notifGoal:"⚽ Goal!",notifGoalBy:"⚽ {who} — Goal!",notifFT:"🏁 Full time"},
+ ko:{loading:"불러오는 중…",loadingYear:"{y} 불러오는 중…",loadFail:"불러오기 실패",teamLoading:"팀 정보 불러오는 중…",teamFail:"팀 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.",close:"닫기",standingsLoading:"조별 순위 불러오는 중…",noStandings:"조별 순위 데이터가 없습니다",noMatchesDay:"이 날짜에 경기가 없습니다",noSchedule:"경기 일정이 없습니다",matches:"{n} 경기",expandAll:"전경기 펼치기",collapseAll:"전경기 접기",bracketPending:"토너먼트 대진은 조별리그 종료 후 확정됩니다",matchLoading:"경기 정보 불러오는 중…",matchFail:"정보를 불러올 수 없습니다",noEventsYet:"아직 기록된 이벤트가 없습니다",noMatchDetail:"이 경기의 상세 정보를 찾지 못했습니다",events:"이벤트",eventsHint:"← 경기 시간 →",noRecord:"기록 없음",highlight:"하이라이트",playGoal:"골 하이라이트 재생",schedule:"일정",groups:"조별",bracket:"대진표",tabAccuracy:"예측성적",accPredictor:"예측기",accOutcome:"승부 적중",accExact:"정확 스코어",accGradeAI:"AI 채점",accGrading:"채점 중…",accNote:"승부 적중 = 승자 맞춤. AI(Gemini/ChatGPT)는 이미 채점된 경기만 집계됩니다 — 'AI 채점'을 누르면 나머지를 채웁니다.",accNoData:"아직 종료된 경기가 없습니다",accByRound:"차수별 결과",roundN:"{n}차전",localTime:"현지시간",tzHint:"체크: 경기장 현지시간 / 해제: 한국시간",editionTitle:"월드컵 회차",themeChange:"테마 변경",toDark:"다크 모드로 전환",toLight:"라이트 모드로 전환",refresh:"새로고침",alertOn:"알림 끄기",alertOff:"알림 받기",alertMatch:"경기 알림 받기",saved:"저장됨",saving:"저장 중…",champion:"우승",runnerUp:"준우승",third:"3위",goalsN:"({n}골)",final:"결승",opening:"개막식",finalFull:"결승 풀경기",finalHl:"결승 H/L",live:"LIVE",finished:"종료",liveHT:"하프타임",liveET:"연장",tbd:"미정",thirdPlace:"3·4위전",st32:"32강",st16:"16강",stQF:"8강",stSF:"4강",capacity:"수용인원",seatsUnit:"석",surface:"표면",attendance:"관중",temp:"온도",humidity:"습도",odds:"배당",home:"홈",draw:"무",away:"원정",firstHalf:"전반",secondHalf:"후반",extra:"연장",thTeam:"팀",thP:"경기",thW:"승",thD:"무",thL:"패",thGD:"득실",thPts:"승점",continent:"대륙",capital:"수도",population:"인구",popUnit:"명",area:"면적",founded:"협회창설",wcHistory:"월드컵 역대 성적",scheduleTitle:"일정",squad:"선수단",coach:"감독",apps:"본선 출전",other:"그 외",bestResult:"최고 성적",timesN:"{n}회",appsN:"{n}회",youngest:"최연소",oldest:"최고령",unavail:"출전불가",injured:"부상",club:"소속팀",lookup:"조회 중…",position:"포지션",wcGoals:"이번 월드컵 득점",wcGoalsAll:"통산 월드컵 득점",cardYellow:"경고(옐로)",cardRed:"퇴장(레드)",number:"등번호",ageL:"나이",birthday:"생일",height:"신장",weight:"체중",birthplace:"출생지",outOfSquad:"출전 불가",ageN:"{n}세",upcoming:"예정",groupN:"{g}조",tieNote:"승점·득실·다득점·승자승 순",advCol:"32강",advAuto:"진출",advPo:"진출권",adv3In:"3위 진출권",adv3Out:"3위 탈락권",thWDL:"승무패",thGFGA:"득실점",thNext:"다음",clinched:"진출확정",thGF:"득점",thGA:"실점",thGGG:"득실차",thCard:"카드",provisional:"잠정",eliminated:"탈락",fixed:"확정",thFixed:"확정",thirdRule:"32강 = 각 조 1·2위 + 3위 중 상위 8팀. 3위 순위(FIFA):",thirdsTitle:"32강 진출 경쟁 (확정·탈락 제외, 확률순)",thirdsNote:"1·2위 = 자동진출 · 3위 = 상위 8팀 진출 · 4위 = 탈락. 경기가 끝날 때마다 재계산.",advFormat:"32강 = 각 조 1·2위 + 3위 중 상위 8팀.",rankGroupTitle:"① 조내 순위 — 같은 조 → 승자승 적용 (FIFA 2026):",rankThirdTitle:"② 조간 3위 — 다른 조 → 승자승 없음:",groupStage:"조별리그",debut:"첫 출전",place4:"4위",unbeaten:"무패",zaire:"자이르",appPredict:"Elo x Score",predicting:"분석 중…",factorForm:"최근",factorInj:"부상",factorCards:"카드",factorPts:"승점",factorGd:"득실",factorHome:"홈",predNote:"FIFA 랭킹 + 이번 대회 성적·부상·카드 종합",today:"오늘",oddsRef:"베팅 배당 (ESPN)",predScore:"예상 스코어",claudePick:"Claude 예측",cDiffer:"모델과 다른 의견",cReasonEven:"막상막하 — 근소한 우위.",cReasonStar:"{who}의 폼이 절정.",cReasonPower:"빅매치에 강한 전통 강호.",cReasonForm:"상승세를 타고 있음.",cReasonHome:"홈 이점이 승부를 가른다.",cReasonStrength:"전력·뎁스에서 우위.",cConfLbl:"적중확률",cConfHint:"이 픽이 맞을 것으로 모델이 추정한 확률",aiNoKey:"config.json에 {k} 추가하면 활성화",aiFail:"모델 호출 실패",aiQuota:"요청 한도 초과 (잠시 후 자동 재시도)",wind:"풍속",alt:"고도",lineup:"라인업",predLineup:"예상 라인업",predLineupNote:"추정 — 부상·출장정지 제외, 상대 맞춤 포메이션",lineupOut:"결장",suspended:"출장정지",startingXI:"선발",subs:"교체",strength:"강도",keyPlayers:"주요 득점",reset:"초기화",calibration:"보정",notifKickoff:"⚽ 경기 시작",notifGoal:"⚽ 골!",notifGoalBy:"⚽ {who} 골!",notifFT:"🏁 경기 종료"},
+ zh:{loading:"加载中…",loadingYear:"加载 {y}…",loadFail:"加载失败",teamLoading:"加载球队…",teamFail:"无法加载球队信息。<br>请稍后重试。",close:"关闭",standingsLoading:"加载排名…",noStandings:"暂无排名数据",noMatchesDay:"当天没有比赛",noSchedule:"暂无赛程",matches:"{n} 场",expandAll:"展开全部",collapseAll:"收起全部",bracketPending:"淘汰赛对阵将在小组赛结束后确定",matchLoading:"加载比赛信息…",matchFail:"无法加载信息",noEventsYet:"暂无事件记录",noMatchDetail:"未找到该场比赛详情",events:"事件",eventsHint:"← 比赛时间 →",noRecord:"无记录",highlight:"集锦",playGoal:"播放进球集锦",schedule:"赛程",groups:"小组",bracket:"对阵表",tabAccuracy:"预测战绩",accPredictor:"预测器",accOutcome:"胜负命中",accExact:"精确比分",accGradeAI:"AI 评分",accGrading:"评分中…",accNote:"胜负命中=猜对胜方。AI(Gemini/ChatGPT)仅统计已评分的比赛 — 点击'AI 评分'补全其余。",accNoData:"暂无已结束的比赛",accByRound:"分轮次",roundN:"第{n}轮",localTime:"当地时间",tzHint:"勾选：球场当地时间 / 取消：韩国时间",editionTitle:"世界杯届次",themeChange:"切换主题",toDark:"切换到深色模式",toLight:"切换到浅色模式",refresh:"刷新",alertOn:"关闭提醒",alertOff:"开启提醒",alertMatch:"开启比赛提醒",saved:"已保存",saving:"保存中…",champion:"冠军",runnerUp:"亚军",third:"季军",goalsN:"({n}球)",final:"决赛",opening:"开幕式",finalFull:"决赛全场",finalHl:"决赛集锦",live:"LIVE",finished:"完场",liveHT:"中场",liveET:"加时",tbd:"待定",thirdPlace:"三四名决赛",st32:"32强",st16:"16强",stQF:"8强",stSF:"4强",capacity:"容量",seatsUnit:"座",surface:"场地",attendance:"观众",temp:"气温",humidity:"湿度",odds:"赔率",home:"主",draw:"平",away:"客",firstHalf:"上半场",secondHalf:"下半场",extra:"加时",thTeam:"球队",thP:"场",thW:"胜",thD:"平",thL:"负",thGD:"净胜",thPts:"积分",continent:"大洲",capital:"首都",population:"人口",popUnit:"人",area:"面积",founded:"成立",wcHistory:"世界杯历史战绩",scheduleTitle:"赛程",squad:"球员名单",coach:"主教练",apps:"参赛次数",other:"其他",bestResult:"最佳成绩",timesN:"{n}次",appsN:"{n}次",youngest:"最年轻",oldest:"最年长",unavail:"不可出场",injured:"伤病",club:"所属球队",lookup:"查询中…",position:"位置",wcGoals:"本届进球",wcGoalsAll:"世界杯总进球",cardYellow:"黄牌",cardRed:"红牌",number:"号码",ageL:"年龄",birthday:"生日",height:"身高",weight:"体重",birthplace:"出生地",outOfSquad:"无法出场",ageN:"{n}岁",upcoming:"未赛",groupN:"{g}组",tieNote:"积分·净胜·进球·相互成绩",advCol:"32强",advAuto:"晋级",advPo:"或晋级",adv3In:"第3晋级",adv3Out:"第3出局",thWDL:"胜平负",thGFGA:"进:失",thNext:"下轮",clinched:"已晋级",thGF:"进球",thGA:"失球",thGGG:"进失净",thCard:"牌",provisional:"暂定",eliminated:"出局",fixed:"已定",thFixed:"状态",thirdRule:"32强 = 各组前2 + 8个最佳第3名。第3名排名(FIFA)：",thirdsTitle:"32强争夺 (除已晋级与出局)",thirdsNote:"前2 = 自动晋级 · 第3 = 最佳8队晋级 · 第4 = 出局。每场比赛结束后重算。",advFormat:"32强 = 各组前2 + 8个最佳第3名。",rankGroupTitle:"① 组内排名 — 同组 → 用相互对战 (FIFA 2026):",rankThirdTitle:"② 跨组第3名排名 — 不同组 → 无相互对战:",groupStage:"小组赛",debut:"首次参赛",place4:"第4名",unbeaten:"不败",zaire:"扎伊尔",appPredict:"Elo x Score",predicting:"分析中…",factorForm:"状态",factorInj:"伤病",factorCards:"牌",factorPts:"积分",factorGd:"净胜",factorHome:"主场",predNote:"综合 FIFA 排名 + 本届成绩·伤病·红黄牌",today:"今天",oddsRef:"博彩赔率 (ESPN)",predScore:"预测比分",claudePick:"Claude 预测",cDiffer:"与模型不同",cReasonEven:"势均力敌 — 略占上风。",cReasonStar:"{who} 状态火热。",cReasonPower:"大赛底蕴深厚。",cReasonForm:"势头正旺。",cReasonHome:"主场优势占先。",cReasonStrength:"实力与厚度更胜一筹。",cConfLbl:"命中概率",cConfHint:"模型估计该预测正确的概率",aiNoKey:"在 config.json 添加 {k} 即可启用",aiFail:"无法连接模型",aiQuota:"请求超限 (稍后自动重试)",wind:"风速",alt:"海拔",lineup:"阵容",predLineup:"预测阵容",predLineupNote:"预估 — 已排除伤停球员，按对手调整阵型",lineupOut:"缺阵",suspended:"停赛",startingXI:"首发",subs:"替补",strength:"实力",keyPlayers:"主要射手",reset:"重置",calibration:"校准",notifKickoff:"⚽ 开球",notifGoal:"⚽ 进球！",notifGoalBy:"⚽ {who} 进球！",notifFT:"🏁 完场"},
+ ja:{loading:"読み込み中…",loadingYear:"{y} を読み込み中…",loadFail:"読み込み失敗",teamLoading:"チーム情報を読み込み中…",teamFail:"チーム情報を読み込めませんでした。<br>後ほど再試行してください。",close:"閉じる",standingsLoading:"順位を読み込み中…",noStandings:"順位データがありません",noMatchesDay:"この日は試合がありません",noSchedule:"試合がありません",matches:"{n} 試合",expandAll:"全試合を展開",collapseAll:"全試合を折りたたむ",bracketPending:"決勝トーナメントの組み合わせはグループステージ終了後に確定します",matchLoading:"試合情報を読み込み中…",matchFail:"情報を読み込めません",noEventsYet:"まだイベントの記録がありません",noMatchDetail:"この試合の詳細が見つかりません",events:"イベント",eventsHint:"← 試合時間 →",noRecord:"記録なし",highlight:"ハイライト",playGoal:"ゴールハイライト再生",schedule:"日程",groups:"グループ",bracket:"トーナメント",tabAccuracy:"予測成績",accPredictor:"予測者",accOutcome:"勝敗的中",accExact:"スコア的中",accGradeAI:"AI採点",accGrading:"採点中…",accNote:"勝敗的中=勝者を当てた。AI(Gemini/ChatGPT)は採点済みの試合のみ集計 — 「AI採点」で残りを補完。",accNoData:"まだ終了した試合がありません",accByRound:"節別の結果",roundN:"第{n}節",localTime:"現地時間",tzHint:"チェック：会場の現地時間 / 解除：韓国時間",editionTitle:"ワールドカップ大会",themeChange:"テーマ変更",toDark:"ダークモードに切替",toLight:"ライトモードに切替",refresh:"更新",alertOn:"通知オフ",alertOff:"通知オン",alertMatch:"試合通知を受け取る",saved:"保存済み",saving:"保存中…",champion:"優勝",runnerUp:"準優勝",third:"3位",goalsN:"({n}点)",final:"決勝",opening:"開会式",finalFull:"決勝フル",finalHl:"決勝H/L",live:"LIVE",finished:"終了",liveHT:"ハーフタイム",liveET:"延長",tbd:"未定",thirdPlace:"3位決定戦",st32:"ベスト32",st16:"ベスト16",stQF:"準々決勝",stSF:"準決勝",capacity:"収容人数",seatsUnit:"席",surface:"ピッチ",attendance:"観客",temp:"気温",humidity:"湿度",odds:"オッズ",home:"ホーム",draw:"分",away:"アウェイ",firstHalf:"前半",secondHalf:"後半",extra:"延長",thTeam:"チーム",thP:"試",thW:"勝",thD:"分",thL:"敗",thGD:"得失",thPts:"勝点",continent:"大陸",capital:"首都",population:"人口",popUnit:"人",area:"面積",founded:"創設",wcHistory:"W杯成績",scheduleTitle:"日程",squad:"メンバー",coach:"監督",apps:"本大会出場",other:"その他",bestResult:"最高成績",timesN:"{n}回",appsN:"{n}回",youngest:"最年少",oldest:"最年長",unavail:"出場不可",injured:"負傷",club:"所属",lookup:"照会中…",position:"ポジション",wcGoals:"今大会の得点",wcGoalsAll:"W杯通算得点",cardYellow:"警告",cardRed:"退場",number:"背番号",ageL:"年齢",birthday:"生年月日",height:"身長",weight:"体重",birthplace:"出身地",outOfSquad:"出場不可",ageN:"{n}歳",upcoming:"予定",groupN:"{g}組",tieNote:"勝点·得失·得点·当該対戦",advCol:"32強",advAuto:"突破",advPo:"通過圏",adv3In:"3位通過",adv3Out:"3位敗退",thWDL:"勝分敗",thGFGA:"得:失",thNext:"次戦",clinched:"突破確定",thGF:"得点",thGA:"失点",thGGG:"得失差",thCard:"カード",provisional:"暫定",eliminated:"敗退",fixed:"確定",thFixed:"確定",thirdRule:"ベスト32 = 各組上位2 + 3位上位8チーム。3位順位(FIFA)：",thirdsTitle:"ベスト32争い (確定·敗退を除く)",thirdsNote:"1・2位 = 自動突破 · 3位 = 上位8チーム突破 · 4位 = 敗退。試合終了ごとに再計算。",advFormat:"ベスト32 = 各組上位2 + 3位上位8チーム。",rankGroupTitle:"① 組内順位 — 同組 → 当該対戦あり (FIFA 2026):",rankThirdTitle:"② 組間3位順位 — 異なる組 → 当該対戦なし:",groupStage:"グループステージ",debut:"初出場",place4:"4位",unbeaten:"無敗",zaire:"ザイール",appPredict:"Elo x Score",predicting:"分析中…",factorForm:"調子",factorInj:"負傷",factorCards:"カード",factorPts:"勝点",factorGd:"得失",factorHome:"ホーム",predNote:"FIFAランク+今大会の成績・負傷・カードを総合",today:"今日",oddsRef:"ブックメーカー (ESPN)",predScore:"予想スコア",claudePick:"Claude 予想",cDiffer:"モデルと異なる",cReasonEven:"互角 — わずかに優位。",cReasonStar:"{who} が絶好調。",cReasonPower:"大舞台に強い伝統国。",cReasonForm:"勢いに乗る。",cReasonHome:"ホームの利が後押し。",cReasonStrength:"地力と層で上回る。",cConfLbl:"的中確率",cConfHint:"この予想が当たるとモデルが推定する確率",aiNoKey:"config.json に {k} を追加で有効化",aiFail:"モデルに接続できません",aiQuota:"リクエスト上限 (まもなく自動再試行)",wind:"風速",alt:"標高",lineup:"スタメン",predLineup:"予想スタメン",predLineupNote:"推定 — 負傷・出場停止を除外、相手に応じた布陣",lineupOut:"欠場",suspended:"出場停止",startingXI:"先発",subs:"控え",strength:"強さ",keyPlayers:"得点者",reset:"リセット",calibration:"補正",notifKickoff:"⚽ キックオフ",notifGoal:"⚽ ゴール！",notifGoalBy:"⚽ {who} ゴール！",notifFT:"🏁 試合終了"},
 };
 function tr(k, p){
   const d = I18N[LANG] || {};
@@ -1217,7 +1319,8 @@ function setView(v){
   document.getElementById("tabBracket").classList.toggle("active", v==="bracket");
   const ta=document.getElementById("tabAcc"); if(ta) ta.classList.toggle("active", v==="acc");
   document.getElementById("datebar").style.display = v==="time" ? "flex" : "none";
-  if (v==="group" && !state.groups.length) loadStandings(); else render();
+  if (v==="group"){ _advOdds=undefined; loadStandings(); }   // refresh standings + odds on each open
+  else render();
 }
 
 function toggleTz(){ setTz(state.tz==="kst" ? "local" : "kst"); }
@@ -1283,7 +1386,9 @@ async function refreshLive(){
   try { data = await fetch("/api/matches",{cache:"no-store"}).then(r=>r.json()); }
   catch(e){ return; }                          // keep the interval; try again next tick
   state.matches = data.matches; setSrc(data.source); updateBadge();
-  computeGroupTables();                          // recompute live standings from the new scores
+  // also refresh official standings so the group badges / mini-table reflect finished results
+  try { const s = await fetch("/api/standings",{cache:"no-store"}).then(r=>r.json()); if (s && s.groups) state.groups = s.groups; } catch(e){}
+  computeGroupTables();                          // rebuild from fresh standings + live overlay
   const day = state.selectedDate;
   const todays = state.matches.filter(m => m.utcDate && tzDateM(m)===day);
   // 1) update each card's score/status + live highlight + live group badges in place (no re-render)
@@ -1458,56 +1563,78 @@ function computeGroupTables(){
       n2l[r.team.name]=letter;
     });
   });
-  const h2h={}, liveDirty={};   // h2h list (for tiebreaks) + groups with a live match in progress
+  // LIVE provisional standings: official base + in-progress matches added on top (a 0-0 live
+  // game counts as a provisional draw → +1 each). Group with a live match is re-ranked by FIFA;
+  // others keep the exact official order.
+  const h2h={}, live={};
   (state.matches||[]).forEach(m=>{
     if(m.stage!=="GROUP_STAGE") return;
     const sc=m.score||{}; if(sc.home==null||sc.away==null) return;
     const L=n2l[m.home.name]; if(!L) return;
     const T=byLetter[L], H=T&&T[m.home.name], A=T&&T[m.away.name]; if(!H||!A) return;
     (h2h[L]=h2h[L]||[]).push({hn:m.home.name,an:m.away.name,sh:sc.home,sa:sc.away});
-    if(LIVE_STATUS.includes(m.status)){   // official standings don't include in-progress games → add provisionally
+    if(LIVE_STATUS.includes(m.status)){
       const sh=sc.home, sa=sc.away;
       H.p++;A.p++; H.gf+=sh;H.ga+=sa; H.gd=H.gf-H.ga; A.gd=A.gf-A.ga;
       if(sh>sa){H.w++;A.l++;H.pts+=3;} else if(sa>sh){A.w++;H.l++;A.pts+=3;} else {H.d++;A.d++;H.pts++;A.pts++;}
-      liveDirty[L]=true;
+      live[L]=true;
     }
   });
   const out={};
   Object.keys(byLetter).forEach(L=>{
     const arr=Object.values(byLetter[L]);
-    if(liveDirty[L]) rankFifa(arr, h2h[L]||[]);          // live → real-time re-rank
-    else arr.sort((a,b)=> (a._off||99)-(b._off||99));    // otherwise → exact official order
+    if(live[L]) rankFifa(arr, h2h[L]||[]);              // live → real-time provisional re-rank
+    else arr.sort((a,b)=> (a._off||99)-(b._off||99));   // else → exact official order
     arr.forEach((t,i)=>t.pos=i+1); out[L]=arr;
   });
   // 2026 format: top 2 of each group + the 8 best 3rd-place teams advance to the Round of 32
   const thirds=[];
   Object.keys(out).forEach(L=>{ if(out[L][2]) thirds.push(out[L][2]); });
-  thirds.sort((x,y)=> y.pts-x.pts || y.gd-x.gd || y.gf-x.gf || (x.name<y.name?-1:1));
+  // Ranking the 3rd-placed teams (different groups → no head-to-head possible):
+  // points → overall GD → overall GF → fair play (fewer cards) → FIFA world ranking
+  thirds.sort((x,y)=> y.pts-x.pts || y.gd-x.gd || y.gf-x.gf
+    || ((x.yc+3*x.rc)-(y.yc+3*y.rc)) || ((x.rank||999)-(y.rank||999)) || (x.name<y.name?-1:1));
   const adv3=new Set(thirds.slice(0,8).map(t=>t.name));
   thirds.forEach(t=>{ t.adv3 = adv3.has(t.name); });
-  _GT={byLetter:out, nameToLetter:n2l, adv3}; return _GT;
+  _GT={byLetter:out, nameToLetter:n2l, adv3, live}; return _GT;
 }
-// FIFA order: 1)pts 2)GD 3)GF — then among teams still level, 4)head-to-head pts 5)H2H GD 6)H2H GF
+// FIFA World Cup 2026 group order (head-to-head now outranks overall GD, unlike previous editions):
+//   1) points → 2) head-to-head pts → 3) H2H GD → 4) H2H GF → 5) overall GD → 6) overall GF
+//   → 7) fair play (fewer cards) → 8) FIFA world ranking
 function rankFifa(arr, matches){
-  arr.sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+  arr.sort((a,b)=> b.pts-a.pts);                          // primary: points
   let i=0;
   while(i<arr.length){
-    let j=i+1;
-    while(j<arr.length && arr[j].pts===arr[i].pts && arr[j].gd===arr[i].gd && arr[j].gf===arr[i].gf) j++;
-    if(j-i>1){ const tied=arr.slice(i,j); h2hSort(tied,matches); for(let k=i;k<j;k++) arr[k]=tied[k-i]; }
+    let j=i+1; while(j<arr.length && arr[j].pts===arr[i].pts) j++;
+    if(j-i>1){ const ord=h2hResolve(arr.slice(i,j), matches); for(let k=i;k<j;k++) arr[k]=ord[k-i]; }
     i=j;
   }
 }
-function h2hSort(tied, matches){
+// overall-stats fallback once head-to-head can't separate: GD → GF → fair play → FIFA rank
+function _overallCmp(a,b){
+  return b.gd-a.gd || b.gf-a.gf || ((a.yc+3*a.rc)-(b.yc+3*b.rc)) || ((a.rank||999)-(b.rank||999)) || (a.name<b.name?-1:1);
+}
+// resolve a set of teams level on points via the head-to-head mini-table; recurse on any sub-tie
+function h2hResolve(tied, matches){
+  if(tied.length===1) return tied.slice();
   const names=new Set(tied.map(t=>t.name)), mini={};
-  tied.forEach(t=>mini[t.name]={pts:0,gd:0,gf:0});
-  matches.forEach(mt=>{ if(names.has(mt.hn)&&names.has(mt.an)){
+  tied.forEach(t=> mini[t.name]={pts:0,gd:0,gf:0});
+  (matches||[]).forEach(mt=>{ if(names.has(mt.hn)&&names.has(mt.an)){
     const H=mini[mt.hn],A=mini[mt.an];
     H.gf+=mt.sh;A.gf+=mt.sa; H.gd+=mt.sh-mt.sa;A.gd+=mt.sa-mt.sh;
     if(mt.sh>mt.sa)H.pts+=3; else if(mt.sa>mt.sh)A.pts+=3; else {H.pts++;A.pts++;}
   }});
-  tied.sort((a,b)=> mini[b.name].pts-mini[a.name].pts || mini[b.name].gd-mini[a.name].gd
-    || mini[b.name].gf-mini[a.name].gf || (a.name<b.name?-1:1));
+  const k=n=>mini[n], sorted=[...tied].sort((a,b)=> k(b.name).pts-k(a.name).pts || k(b.name).gd-k(a.name).gd || k(b.name).gf-k(a.name).gf);
+  const out=[]; let i=0;
+  while(i<sorted.length){
+    let j=i+1; while(j<sorted.length && k(sorted[j].name).pts===k(sorted[i].name).pts
+      && k(sorted[j].name).gd===k(sorted[i].name).gd && k(sorted[j].name).gf===k(sorted[i].name).gf) j++;
+    const cl=sorted.slice(i,j);
+    if(cl.length>1 && cl.length<tied.length) out.push(...h2hResolve(cl, matches));  // partly separated → re-apply H2H
+    else out.push(...cl.sort(_overallCmp));                                          // unbreakable by H2H → overall stats
+    i=j;
+  }
+  return out;
 }
 function teamGrpBadge(name){   // rank pill (#pos · pts · GD) + next-round advancement status
   const L=_GT.nameToLetter[name]; if(!L) return "";
@@ -1533,20 +1660,23 @@ function groupMiniTable(homeName, awayName){   // collapsible live group table (
   const posStr = nm => { const t=arr.find(x=>x.name===nm); return t?`${t.tla||t.name} #${t.pos}`:""; };
   const summary = [homeName, awayName].map(posStr).filter(Boolean).join("  ·  ");
   const cardCell=t=>{ const p=[]; if(t.yc) p.push(`🟨${t.yc}`); if(t.rc) p.push(`🟥${t.rc}`); return p.join(" ")||"—"; };
+  const h3=s=>(/\s/.test(s)?s.trim().split(/\s+/):[...s]).map(x=>`<span class="gn">${x}</span>`).join("");  // 3 aligned slots
   const rows=arr.map(t=>`<tr class="adv-${advClass(t)}${here.has(t.name)?" me":""}">
     <td class="gmp"><span class="adv-dot"></span>${t.pos}</td>
     <td class="gmt"><img src="${t.crest||flagFb}" onerror="this.src='${flagFb}'"/><span>${t.tla||t.name}</span></td>
-    <td>${t.gf}</td><td>${t.ga}</td><td>${(t.gd>0?"+":"")+t.gd}</td><td class="gmpts">${t.pts}</td>
+    <td class="gmwdl"><span class="gn">${t.w}</span><span class="gn">${t.d}</span><span class="gn">${t.l}</span></td>
+    <td class="gmggg"><span class="gn">${t.gf}</span><span class="gn">${t.ga}</span><b class="gn gmgd">${(t.gd>0?"+":"")+t.gd}</b></td><td class="gmpts">${t.pts}</td>
     <td class="gmcd">${cardCell(t)}</td><td class="gmst">${stTxt(t)}</td></tr>`).join("");
   return `<div class="gmini${_gminiOpen?" open":""}" style="border-left:3px solid ${groupAccent(L)}">
     <div class="gmini-h" onclick="toggleGmini(this)">
       <span class="gmini-ti">${groupLabel(L)}</span>
+      ${(_GT.live&&_GT.live[L])?`<span class="gmini-live">● ${tr("live")} ${tr("provisional")}</span>`:""}
       <span class="gmini-sum">${summary}</span>
       <span class="gmini-cv">▾</span>
     </div>
     <div class="gmini-body">
-      <table class="gmini-t"><thead><tr><th>#</th><th class="gmt-h">${tr("thTeam")}</th><th>${tr("thGF")}</th><th>${tr("thGA")}</th><th>${tr("thGD")}</th><th>${tr("thPts")}</th><th>${tr("thCard")}</th><th>${tr("advCol")}</th></tr></thead>
-      <tbody>${rows}</tbody></table>
+      <div class="gmini-scroll"><table class="gmini-t"><thead><tr><th>#</th><th class="gmt-h">${tr("thTeam")}</th><th class="gmh3">${h3(tr("thWDL"))}</th><th class="gmh3">${h3(tr("thGGG"))}</th><th>${tr("thPts")}</th><th>${tr("thCard")}</th><th>${tr("advCol")}</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
       <div class="gmini-lg"><span class="lg adv">${tr("advAuto")}</span><span class="lg adv3">${tr("adv3In")}</span></div>
       <div class="gmini-n">${tr("tieNote")}</div>
     </div></div>`;
@@ -1594,12 +1724,90 @@ const isGoalEv = t => { t=(t||"").toLowerCase();
   if (t.includes("missed") || t.includes("saved")) return false;
   return t.includes("goal") || t.includes("penalty"); };
 const evIcon = t => { const s=(t||"").toLowerCase();
+  if (s.includes("sub")) return "🔄";
   if (s.includes("missed") || s.includes("saved")) return "❌";
   if (isGoalEv(s)) return "⚽";
   if (s.includes("yellow")) return "🟨";
   if (s.includes("red")) return "🟥";
   return "•"; };
 
+const STAT_LABELS = {
+  possessionPct:{en:"Possession",ko:"점유율",zh:"控球率",ja:"支配率"},
+  totalShots:{en:"Shots",ko:"슈팅",zh:"射门",ja:"シュート"},
+  shotsOnTarget:{en:"On target",ko:"유효슈팅",zh:"射正",ja:"枠内"},
+  wonCorners:{en:"Corners",ko:"코너킥",zh:"角球",ja:"CK"},
+  foulsCommitted:{en:"Fouls",ko:"파울",zh:"犯规",ja:"ファウル"},
+  offsides:{en:"Offsides",ko:"오프사이드",zh:"越位",ja:"オフサイド"},
+  saves:{en:"Saves",ko:"선방",zh:"扑救",ja:"セーブ"},
+  accuratePasses:{en:"Passes",ko:"패스 성공",zh:"传球成功",ja:"パス成功"},
+  accurateCrosses:{en:"Crosses",ko:"크로스",zh:"传中",ja:"クロス"},
+  totalTackles:{en:"Tackles",ko:"태클",zh:"抢断",ja:"タックル"},
+  interceptions:{en:"Interceptions",ko:"인터셉트",zh:"拦截",ja:"インターセプト"},
+  yellowCards:{en:"Yellow",ko:"경고",zh:"黄牌",ja:"警告"},
+  redCards:{en:"Red",ko:"퇴장",zh:"红牌",ja:"退場"},
+};
+const sl = k => (STAT_LABELS[k]||{})[LANG] || (STAT_LABELS[k]||{}).en || k;
+const STAT_TITLE = {en:"Match stats",ko:"경기 스탯",zh:"比赛数据",ja:"試合スタッツ"};
+const SUBS_TITLE = {en:"Substitutions",ko:"선수 교체",zh:"换人",ja:"交代"};
+function matchStatsHtml(d){
+  const s=d.stats||{}; const H=s.home||{}, A=s.away||{};
+  const num=v=> v==null?0:(parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0);
+  const defs=[
+    ["possessionPct", t=> t.possessionPct!=null? t.possessionPct+"%":null],
+    ["totalShots"], ["shotsOnTarget"], ["wonCorners"], ["foulsCommitted"], ["offsides"], ["saves"],
+    ["accuratePasses", t=> t.accuratePasses!=null? `${t.accuratePasses}/${t.totalPasses}`:null],
+    ["accurateCrosses", t=> t.accurateCrosses!=null? `${t.accurateCrosses}/${t.totalCrosses}`:null],
+    ["totalTackles"], ["interceptions"],
+  ];
+  const rows=defs.map(([k,fmt])=>{
+    const hv=H[k], av=A[k];
+    if(hv==null && av==null) return "";
+    const hh=fmt?fmt(H):hv, aa=fmt?fmt(A):av;
+    const hn=num(hv), an=num(av), tot=(hn+an)||1;
+    return `<div class="ms-row">
+      <span class="ms-v">${hh??"-"}</span>
+      <div class="ms-mid"><div class="ms-l">${sl(k)}</div>
+        <div class="ms-bar"><i style="width:${Math.round(100*hn/tot)}%"></i><i class="a" style="width:${Math.round(100*an/tot)}%"></i></div></div>
+      <span class="ms-v r">${aa??"-"}</span></div>`;
+  }).join("");
+  const body = rows || `<div class="ms-empty">${tr("noRecord")}</div>`;
+  return `<div class="acc-sect">📊 ${STAT_TITLE[LANG]||STAT_TITLE.en}</div><div class="mstats">${body}</div>`;
+}
+function subImg(p,nm){ return p?`<img class="sub2-img" src="${imgUrl(p)}" onerror="this.outerHTML='<span class=&quot;sub2-av&quot;>${initials(nm||'')}</span>'"/>`:`<span class="sub2-av">${initials(nm||'')}</span>`; }
+function matchSubsHtml(d){
+  const s=d.subs||{};
+  const pc=(nm,ph,team)=>`onclick="openPlayerBySquad('${encodeURIComponent(nm||"")}','${encodeURIComponent(team||"")}','${encodeURIComponent(ph||"")}')" data-pn="${(nm||"").replace(/"/g,"&quot;")}"`;
+  const list=(arr,team)=> (arr||[]).map(x=>`<div class="sub2">
+      <span class="sub2-min">${x.min}</span>
+      <div class="sub2-p in clk" ${pc(x.in,x.inPhoto,team)}>${subImg(x.inPhoto,x.in)}<span class="sub2-nm">${x.in||""}</span></div>
+      <span class="sub2-ar">⇄</span>
+      <div class="sub2-p out clk" ${pc(x.out,x.outPhoto,team)}>${subImg(x.outPhoto,x.out)}<span class="sub2-nm">${x.out||""}</span>${x.reason==="injury"?`<span class="sub2-rsn" title="${tr("injured")}">🩹</span>`:""}</div>
+    </div>`).join("");
+  const teamCol=(nm,arr)=>`<div class="sub2-tcol"><div class="sub2-team">${nm}</div>${(arr&&arr.length)?list(arr,nm):`<div class="ms-empty">${tr("noRecord")}</div>`}</div>`;
+  const body = (s.home&&s.home.length)||(s.away&&s.away.length)
+    ? `<div class="msubs2">${teamCol(d.home.name,s.home)}${teamCol(d.away.name,s.away)}</div>`
+    : `<div class="ms-empty">${tr("noRecord")}</div>`;
+  return `<div class="acc-sect">🔄 ${SUBS_TITLE[LANG]||SUBS_TITLE.en}</div>${body}`;
+}
+const FORM_TITLE={en:"Recent form",ko:"최근 5경기",zh:"近5场",ja:"直近5試合"};
+const H2H_TITLE={en:"Head-to-head",ko:"상대 전적",zh:"历史交锋",ja:"対戦成績"};
+const _fcls=r=> r==="W"?"w":r==="L"?"l":"d";
+function matchFormHtml(d){
+  const f=d.form; if(!f) return "";
+  const row=(nm,arr)=> (arr&&arr.length)
+    ? `<div class="form-row"><span class="form-tm">${nm}</span><span class="form-dots">${arr.map(g=>`<span class="fdot ${_fcls(g.r)}" title="${g.atVs||""} ${g.opp||""} ${g.score||""}">${g.r||"-"}</span>`).join("")}</span></div>` : "";
+  const body=[row(d.home.name,f.home),row(d.away.name,f.away)].filter(Boolean).join("");
+  if(!body) return "";
+  return `<div class="acc-sect">📈 ${FORM_TITLE[LANG]||FORM_TITLE.en}</div><div class="mform">${body}</div>`;
+}
+function matchH2HHtml(d){
+  const h=d.h2h; if(!h||!h.events||!h.events.length) return "";
+  const t=h.tally||{};
+  const ht=d.home.tla||d.home.name, at=d.away.tla||d.away.name;
+  const rows=h.events.map(e=>`<div class="h2h-row"><span class="h2h-dt">${(e.date||"").slice(0,4)}</span><span class="h2h-sc">${ht} ${e.hs}-${e.as} ${at}</span><span class="fdot ${_fcls(e.r)}">${e.r||"-"}</span></div>`).join("");
+  return `<div class="acc-sect">⚔️ ${H2H_TITLE[LANG]||H2H_TITLE.en}</div>
+    <div class="mh2h"><div class="h2h-sum"><span class="h2h-sum-tm">${d.home.name}</span><span class="h2h-w">${tr("thW")} ${t.w||0}</span><span class="h2h-d">${tr("thD")} ${t.d||0}</span><span class="h2h-l">${tr("thL")} ${t.l||0}</span></div>${rows}</div>`;
+}
 function renderMatchDetail(d){
   const v = d.venue || {};
   const w = d.weather || {};
@@ -1642,7 +1850,8 @@ function renderMatchDetail(d){
     const b=m?+m[1]:0, e=m&&m[2]?+m[2]:0; return {base:b, val:b+e/100}; };
   const segOf = b => b<=45 ? 0 : b<=90 ? 1 : 2;     // 전반 / 후반 / 연장
   const segs = [[],[],[]];
-  (d.events||[]).forEach(e => { const p=parseMin(e.minute); e._val=p.val; segs[segOf(p.base)].push(e); });
+  const evAll = (d.events||[]);
+  evAll.forEach(e => { const p=parseMin(e.minute); e._val=p.val; segs[segOf(p.base)].push(e); });
   segs.forEach(s => s.sort((a,b)=> a._val-b._val));
   const SEGN = [tr("firstHalf"),tr("secondHalf"),tr("extra")];
   // FIFA-official-style search titles → top YouTube result is the FIFA clip, played in-app
@@ -1672,7 +1881,7 @@ function renderMatchDetail(d){
         ${started ? `<button class="hl-btn2" onclick="playHighlight('${matchQ}')">▶ Highlights</button>` : ""}
         ${started ? `<button class="hl-btn2" onclick="playHighlight('${fullQ}')">▶ Full Match</button>` : ""}
       </div></div>`;
-  const evBody = (d.events||[]).length
+  const evBody = evAll.length
     ? `<div class="tl-h-scroll">` + showSegs.map(si => `
          <div class="tl-seg">
            <div class="tl-seg-label">${SEGN[si]}</div>
@@ -1690,6 +1899,7 @@ function renderMatchDetail(d){
       <div class="acc-pred-col">${predHtml}${oddsHtml}<div class="ai-slot"><div class="ai-pick" id="ai-groq-${d.id}"></div><div class="ai-pick" id="ai-openai-${d.id}"></div></div></div>
     </div>
     ${evs}
+    <div class="ms2"><div class="ms2-col">${matchStatsHtml(d)}</div><div class="ms2-col">${matchSubsHtml(d)}</div><div class="ms2-col">${matchFormHtml(d)}${matchH2HHtml(d)}</div></div>
   </div>`;
 }
 
@@ -1973,29 +2183,156 @@ function toggleExpandAll(btn){
   if (btn) btn.innerHTML = (anyClosed ? "▴ " : "▾ ") + tr(anyClosed ? "collapseAll" : "expandAll");
 }
 
+let _advOdds = undefined;   // team → P(reach R32) %, from /api/advodds
+let _advPos = null;         // team → {p1,p2,p3,p4,t3} final-position probabilities
+let _could3 = null;         // set of teams that can still finish 3rd in their group
+let _elimSet = new Set();   // mathematically eliminated team names
+let _clinchSet = new Set(); // teams that clinched a top-2 spot (auto-advance)
+// FIFA World Cup 2026 group ranking (head-to-head now BEFORE overall GD; final tiebreak = FIFA ranking)
+const GROUP_CRIT = {
+  en:["Points","Head-to-head (points → goal difference → goals)","Overall goal difference","Overall goals scored","Fair play (fewer cards)","FIFA world ranking"],
+  ko:["승점","승자승 (승점 → 골득실 → 다득점)","전체 골득실","전체 다득점","페어플레이(카드 적은 순)","FIFA 랭킹"],
+  zh:["积分","相互对战 (积分 → 净胜球 → 进球)","总净胜球","总进球","公平竞赛(牌少)","FIFA 排名"],
+  ja:["勝点","当該対戦 (勝点 → 得失差 → 得点)","全体の得失点差","全体の総得点","フェアプレー(カード少)","FIFAランキング"],
+};
+// Ranking the 8 best 3rd-placed teams (different groups → no head-to-head)
+const THIRD_CRIT = {
+  en:["Points","Overall goal difference","Overall goals scored","Fair play (fewer cards)","FIFA world ranking"],
+  ko:["승점","전체 골득실","전체 다득점","페어플레이(카드 적은 순)","FIFA 랭킹"],
+  zh:["积分","总净胜球","总进球","公平竞赛(牌少)","FIFA 排名"],
+  ja:["勝点","全体の得失点差","全体の総得点","フェアプレー(カード少)","FIFAランキング"],
+};
+function _cardsStr(t){ const p=[]; if(t.yc)p.push(`🟨${t.yc}`); if(t.rc)p.push(`🟥${t.rc}`); return p.join(" ")||"—"; }
+// Undecided teams (excludes clinched top-2 and the eliminated) — the ones whose fate the round-3
+// results still decide. Sorted by advance probability; shows pts/GD/GF + group position.
+function thirdsTableHtml(){
+  const all=[];
+  Object.keys(_GT.byLetter||{}).forEach(L=> (_GT.byLetter[L]||[]).forEach((t,idx)=> all.push(Object.assign({L, pos:idx+1}, t))));
+  const pn = nm => (_advOdds && _advOdds[nm]!=null) ? _advOdds[nm] : -1;
+  // a 4+pt guaranteed-3rd (out 0% & pts≥4) is treated as confirmed (R32 100%) HERE ONLY — the group
+  // table keeps the real result. Such teams are shown with 100%; otherwise focus on the <100% contested set.
+  const isConf3 = t => { const q=_advPos && _advPos[t.name]; return !!(q && q.p4===0 && t.pos===3 && (t.pts||0)>=4); };
+  const eff = t => isConf3(t) ? 100 : pn(t.name);     // effective R32 % (4+pt 3rd → 100)
+  const cand=all.filter(t=> !_clinchSet.has(t.name) && !_elimSet.has(t.name) && (pn(t.name)<100 || isConf3(t)));
+  if(!cand.length) return "";
+  // sort by effective R32 advance % (desc); ties by the FIFA best-8 rule (pts → GD → GF → cards → rank)
+  cand.sort((x,y)=> (eff(y)-eff(x))
+    || (y.pts-x.pts) || (y.gd-x.gd) || (y.gf-x.gf)
+    || ((x.yc+3*x.rc)-(y.yc+3*y.rc)) || ((x.rank||999)-(y.rank||999)) || (x.name<y.name?-1:1));
+  const prob = nm => pn(nm)>=0 ? pn(nm)+"%" : "…";
+  const ps = nm => (_advPos && _advPos[nm]) || null;            // final-position distribution
+  const pc = (nm,k) => { const q=ps(nm); return q && q[k]!=null ? q[k]+"%" : "…"; };
+  const p12 = nm => { const q=ps(nm); return q ? (q.p1+q.p2)+"%" : "…"; };   // auto-advance (1·2위)
+  const PL = ({en:["Top 2","3rd","4th"],ko:["1·2위","3위","4위"],
+               ja:["1・2位","3位","4位"],zh:["前2","第3","第4"]})[LANG] || ["Top 2","3rd","4th"];
+  const rows=cand.map((t,i)=>`<tr>
+    <td class="pos">${i+1}</td><td class="tg">${t.L}${t.pos}</td>
+    <td class="team-col"><div class="gteam" onclick="openTeamName('${encodeURIComponent(t.name)}')"><img src="${t.crest||flagFb}" onerror="this.src='${flagFb}'"/><span class="gnm">${t.tla||t.name}</span></div></td>
+    <td class="gkey">${t.pts}</td>
+    <td class="tpp">${p12(t.name)}</td><td class="tpp tpp3${(ps(t.name)&&ps(t.name).p3===100)?' p3full':''}">${pc(t.name,'p3')}</td><td class="tpp tppx">${pc(t.name,'p4')}</td>
+    <td class="tpr">${isConf3(t)?'100%':prob(t.name)}</td></tr>`).join("");
+  return `<div class="thirds"><div class="sect-title">${tr("thirdsTitle")}</div>
+    <table class="stand thirds-t"><thead><tr><th>#</th><th>${tr("groups")}</th><th class="team-col">${tr("thTeam")}</th><th class="gkey">${tr("thPts")}</th><th class="tpp">${PL[0]}</th><th class="tpp3">${PL[1]}</th><th class="tpp">${PL[2]}</th><th title="Monte-Carlo">${tr("advCol")}</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="thirds-note">${tr("thirdsNote")}</div></div>`;
+}
 function renderGroups(){
   const main = document.getElementById("main");
   if (!state.groups.length){ main.innerHTML = `<div class="empty"><div class="big">▦</div>${tr("noStandings")}</div>`; return; }
   computeGroupTables();   // for the best-8 third-place advancement set
   const adv3 = _GT.adv3 || new Set();
+  if (_advOdds===undefined){ _advOdds=null;   // fetch once, then re-render with the probabilities
+    fetch("/api/advodds").then(r=>r.json()).then(o=>{ _advOdds=(o&&o.adv)||{}; _advPos=(o&&o.pos)||{}; _could3=new Set((o&&o.could3)||[]); if(state.view==="group") renderGroups(); }).catch(()=>{ _advOdds={}; _advPos={}; _could3=new Set(); }); }
+  const probOf = nm => (_advOdds && _advOdds[nm]!=null) ? _advOdds[nm] : null;
+  // ===========================================================================
+  // Advancement classification — 2026 format: 12 groups → top 2 of each (24)
+  // + the 8 best 3rd-placed teams = Round of 32. Every team is EXACTLY one of:
+  //   진출확정 (green)  — guaranteed into the Round of 32
+  //   탈락확정 (black)  — can no longer reach it
+  //   미확정          — shown in the contenders table with the Monte-Carlo %
+  // Method: enumerate EVERY remaining group result (win/draw/loss, nominal
+  // 1-goal margins) and rank each scenario by the FIFA World Cup group key —
+  // points → goal difference → goals scored. (At the World Cup overall GD
+  // outranks head-to-head, unlike the Euro; head-to-head/fair-play only break
+  // a full pts+GD+GF tie, listed under the tab.) Then:
+  //   green  = top-2 in EVERY scenario, OR always top-3 with ≥6 pts (a 6-pt
+  //            third always makes the best-8)
+  //   black  = never better than 4th (can't even reach the group's top 3)
+  // The best-8 cut among 3rd-placed teams is cross-group → its % comes from
+  // /api/advodds, not from this per-group certainty test.
+  // ===========================================================================
+  const remGamesFor = table => {                 // remaining fixtures among this group's teams
+    const names = new Set((table||[]).map(r=>r.team.name)); const out=[];
+    (state.matches||[]).forEach(m=>{ if(m.stage==="GROUP_STAGE" && m.status!=="FINISHED"
+      && names.has(m.home&&m.home.name) && names.has(m.away&&m.away.name)) out.push([m.home.name, m.away.name]); });
+    return out;
+  };
+  const finishedResFor = table => {              // played results among this group (for head-to-head)
+    const names = new Set((table||[]).map(r=>r.team.name)); const out=[];
+    (state.matches||[]).forEach(m=>{ const sc=m.score||{};
+      if(m.stage==="GROUP_STAGE" && m.status==="FINISHED" && sc.home!=null && sc.away!=null
+        && names.has(m.home&&m.home.name) && names.has(m.away&&m.away.name))
+        out.push({hn:m.home.name, an:m.away.name, sh:sc.home, sa:sc.away}); });
+    return out;
+  };
+  const classifyGroup = table => {
+    // enumerate every remaining result and rank each scenario with the full FIFA 2026 key (rankFifa,
+    // head-to-head first), so teams separated only by head-to-head (e.g. Tunisia lost to Sweden) are caught.
+    const base=(table||[]).map(r=>({name:r.team.name, pts:r.points||0,
+      gd:(r.goalDifference!=null?r.goalDifference:(r.goalsFor||0)-(r.goalsAgainst||0)),
+      gf:r.goalsFor||0, yc:r.yc||0, rc:r.rc||0, rank:r.team.rank||999}));
+    const idx={}; base.forEach((t,k)=> idx[t.name]=k);
+    const fixed=finishedResFor(table), games=remGamesFor(table), K=games.length, total=Math.pow(3,K);
+    const best={}, worst={}; base.forEach(t=>{ best[t.name]=99; worst[t.name]=0; });
+    for(let s=0;s<total;s++){
+      const fin=base.map(t=>({...t})), res=fixed.slice(); let c=s;
+      for(let gi=0; gi<K; gi++){ const o=c%3; c=(c-o)/3;
+        const hn=games[gi][0], an=games[gi][1], H=fin[idx[hn]], A=fin[idx[an]];
+        if(o===0){ H.pts+=3; H.gd++; H.gf++; A.gd--; res.push({hn,an,sh:1,sa:0}); }       // home win 1-0
+        else if(o===1){ A.pts+=3; A.gd++; A.gf++; H.gd--; res.push({hn,an,sh:0,sa:1}); }  // away win 0-1
+        else { H.pts++; A.pts++; H.gf++; A.gf++; res.push({hn,an,sh:1,sa:1}); }           // draw 1-1
+      }
+      rankFifa(fin, res);                                        // FIFA 2026: pts → H2H → overall GD/GF → fair play → rank
+      fin.forEach((t,r0)=>{ const rk=r0+1; if(rk<best[t.name])best[t.name]=rk; if(rk>worst[t.name])worst[t.name]=rk; });
+    }
+    const green=new Set(), black=new Set();
+    base.forEach(t=>{
+      if(best[t.name]>=4) black.add(t.name);                                   // never top-3 → out
+      else if(worst[t.name]<=2 || (worst[t.name]<=3 && t.pts>=6)) green.add(t.name); // always top-2, or 6-pt top-3
+    });
+    return {green, black};
+  };
+  _elimSet = new Set(); _clinchSet = new Set();
+  state.groups.forEach(g => { const c=classifyGroup(g.table);
+    c.black.forEach(n=>_elimSet.add(n)); c.green.forEach(n=>_clinchSet.add(n)); });
   main.innerHTML = `<div class="groups">` + state.groups.map(g=>{
     const letter = (g.group||"").replace(/group/i,"").trim().slice(-1).toUpperCase() || "·";
-    const rows = (g.table||[]).map((r,i)=>`<tr class="${i<2?"qual":(i===2&&adv3.has(r.team.name)?"qual3":"")}">
+    const rows = (g.table||[]).map((r,i)=>{ const elim = _elimSet.has(r.team.name); const clinch = _clinchSet.has(r.team.name);
+      return `<tr class="${clinch?"qual":(i===2&&adv3.has(r.team.name)?"qual3":"")}${elim?" elim":""}">
       <td class="pos">${r.position??i+1}</td>
       <td class="team-col"><div class="gteam" onclick="openTeamName('${encodeURIComponent(r.team.name)}')">
         <img src="${r.team.crest||flagFb}" onerror="this.src='${flagFb}'"/>
-        <span class="gnm">${r.team.name}</span>${r.team.rank?`<span class="rk">${r.team.rank}</span>`:""}</div></td>
-      <td>${r.playedGames??0}</td><td>${r.won??0}</td><td>${r.draw??0}</td><td>${r.lost??0}</td>
+        <span class="gnm">${r.team.name}</span>${r.team.rank?`<span class="rk">${r.team.rank}</span>`:""}${i===2&&!elim&&!clinch?`<span class="adv-prob" title="${tr("adv3In")}">${probOf(r.team.name)!=null?probOf(r.team.name)+"%":"…"}</span>`:""}${elim?`<span class="elim-tag">${tr("eliminated")}</span>`:""}</div></td>
+      <td>${r.playedGames??0}</td><td class="gkey">${r.won??0}</td><td>${r.draw??0}</td><td>${r.lost??0}</td>
+      <td class="gkey">${r.goalsFor??0}</td><td>${r.goalsAgainst??0}</td>
       <td>${(r.goalDifference>0?"+":"")+(r.goalDifference??0)}</td>
-      <td class="pts">${r.points??0}</td></tr>`).join("");
+      <td class="pts">${r.points??0}</td></tr>`; }).join("");
     const [hh,ss] = groupHsl(letter);   // color only on the group header (not the card body)
     const ghSt = `style="background:linear-gradient(90deg,${groupBg(letter,.34)},transparent)"`;
     const badgeSt = `style="background:linear-gradient(180deg,hsl(${hh},${ss}%,60%),hsl(${hh},${ss}%,44%));color:#fff"`;
     return `<div class="gcard"><div class="gh" ${ghSt}><span class="badge" ${badgeSt}>${letter}</span><h3>${(g.group||"GROUP").toUpperCase()}</h3></div>
       <table class="stand"><thead><tr>
-        <th>#</th><th class="team-col">${tr("thTeam")}</th><th>${tr("thP")}</th><th>${tr("thW")}</th><th>${tr("thD")}</th><th>${tr("thL")}</th><th>${tr("thGD")}</th><th>${tr("thPts")}</th>
+        <th>#</th><th class="team-col">${tr("thTeam")}</th><th>${tr("thP")}</th><th class="gkey">${tr("thW")}</th><th>${tr("thD")}</th><th>${tr("thL")}</th><th class="gkey">${tr("thGF")}</th><th>${tr("thGA")}</th><th>${tr("thGD")}</th><th>${tr("thPts")}</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
-  }).join("") + `</div>`;
+  }).join("") + `</div>`
+    + `<div class="groups-note">
+      <div class="gn-legend"><span class="gn-q">■</span> ${tr("advAuto")} (1·2)　<span class="gn-q3">■</span> ${tr("adv3In")}　<span class="gn-x">■</span> ${tr("eliminated")}</div>
+      <div class="gn-t">${tr("advFormat")}</div>
+      <div class="gn-sub">${tr("rankGroupTitle")}</div>
+      <ol class="gn-rule">${(GROUP_CRIT[LANG]||GROUP_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`
+    + thirdsTableHtml()
+    + `<div class="groups-note">
+      <div class="gn-sub">${tr("rankThirdTitle")}</div>
+      <ol class="gn-rule">${(THIRD_CRIT[LANG]||THIRD_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`;
 }
 
 /* ---------- notifications / subscriptions (teams & matches) ---------- */
@@ -2279,6 +2616,55 @@ function openPlayer(id){
       }).catch(()=>{ if (!p.club) p.club = "—"; if (document.getElementById("poverlay").classList.contains("open")) modal.innerHTML = playerModalHtml(p); });
   }
 }
+function openPlayerByName(encName, encPhoto){   // fallback: open the modal with just a name (e.g. subs)
+  const name=decodeURIComponent(encName||""); if(!name) return;
+  const photo=decodeURIComponent(encPhoto||"")||null;
+  const id="byname-"+name;
+  if(!playerCache[id]) playerCache[id]={id, name, photo, _detailPhoto:photo};
+  openPlayer(id);
+}
+// open the STANDARD player modal with full squad data — look the player up in their team's squad
+async function openPlayerBySquad(encName, encTeam, encPhoto){
+  const name=decodeURIComponent(encName||""); if(!name) return;
+  const team=decodeURIComponent(encTeam||"");
+  const hit=Object.values(playerCache).find(p=>p && p.name===name && p.dateOfBirth!=null);
+  if(hit){ openPlayer(hit.id); return; }
+  if(team){
+    try{
+      currentTeamFlag = currentTeamFlag||"";
+      const t=(await fetch("/api/team?name="+encodeURIComponent(team)).then(r=>r.json())).team;
+      if(t){
+        if(t.crest) currentTeamFlag=t.crest;                       // flag backdrop behind the photo
+        (t.squad||[]).forEach(pl=>{ if(pl.id!=null) playerCache[pl.id]=pl; });
+        const found=(t.squad||[]).find(pl=>pl.name===name);
+        if(found){ openPlayer(found.id); return; }
+      }
+    }catch(e){}
+  }
+  openPlayerByName(encName, encPhoto);   // fallback if not found
+}
+/* ---- multilingual player-name tooltip (Wikipedia language links) ---- */
+const _pnCache={}; let _pnTipEl=null;
+function _pnTip(){ if(!_pnTipEl){ _pnTipEl=document.createElement("div"); _pnTipEl.className="pn-tip"; document.body.appendChild(_pnTipEl); } return _pnTipEl; }
+function _pnPos(tip, el){ const r=el.getBoundingClientRect(); const th=tip.offsetHeight||60;
+  let top=r.bottom+6; if(top+th > window.innerHeight-8) top=Math.max(8, r.top-th-6);   // flip above near bottom
+  tip.style.left=Math.max(8, Math.min(window.innerWidth-268, r.left))+"px"; tip.style.top=top+"px"; }
+function _pnRender(tip, nm, data){
+  const rows=[["EN",(data||{}).en||nm],["KO",(data||{}).ko],["JA",(data||{}).ja],["ZH",(data||{}).zh]]
+    .filter(([k,v])=>v).map(([k,v])=>`<div class="pn-row"><span class="pn-l">${k}</span><span>${v}</span></div>`).join("");
+  tip.innerHTML=rows||`<div class="pn-row"><span>${nm}</span></div>`;
+}
+async function showPnTip(el){
+  const nm=el.getAttribute("data-pn"); if(!nm) return;
+  const tip=_pnTip(); _pnRender(tip, nm, _pnCache[nm]); tip.classList.add("on"); _pnPos(tip, el);
+  if(_pnCache[nm]===undefined){
+    const data=await fetch("/api/playername?name="+encodeURIComponent(nm)).then(r=>r.json()).catch(()=>null);
+    _pnCache[nm]=data||{en:nm};
+    if(tip.classList.contains("on")){ _pnRender(tip, nm, _pnCache[nm]); _pnPos(tip, el); }
+  }
+}
+document.addEventListener("mouseover", e=>{ const el=e.target.closest&&e.target.closest("[data-pn]"); if(el) showPnTip(el); });
+document.addEventListener("mouseout", e=>{ const el=e.target.closest&&e.target.closest("[data-pn]"); if(el && _pnTipEl) _pnTipEl.classList.remove("on"); });
 function closePlayer(){ document.getElementById("poverlay").classList.remove("open"); }
 document.addEventListener("keydown", e => {
   if (e.key!=="Escape") return;

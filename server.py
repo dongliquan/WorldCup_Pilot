@@ -22,6 +22,7 @@ import json
 import math
 import os
 import queue
+import random
 import re
 import threading
 import time
@@ -575,6 +576,165 @@ def get_standings():
     return data
 
 
+def _rank_group_2026(names, pts, gf, ga, cards, res):
+    """Order one group best→worst by the FIFA World Cup 2026 key:
+    points → head-to-head (pts → GD → GF among the tied teams) → overall GD → overall GF →
+    fair play (fewer cards). `res` = (home, away, hs, as) results among these teams (played + simulated)."""
+    def ov(n):                                  # overall fallback, higher = better
+        return (gf[n] - ga[n], gf[n], -cards.get(n, 0))
+
+    def resolve(group):
+        if len(group) == 1:
+            return list(group)
+        gs = set(group)
+        mp = {n: [0, 0, 0] for n in group}      # head-to-head [pts, gd, gf]
+        for h, a, hs, asc in res:
+            if h in gs and a in gs:
+                mp[h][2] += hs; mp[a][2] += asc
+                mp[h][1] += hs - asc; mp[a][1] += asc - hs
+                if hs > asc:
+                    mp[h][0] += 3
+                elif asc > hs:
+                    mp[a][0] += 3
+                else:
+                    mp[h][0] += 1; mp[a][0] += 1
+        srt = sorted(group, key=lambda n: (mp[n][0], mp[n][1], mp[n][2]), reverse=True)
+        out, i = [], 0
+        while i < len(srt):
+            j = i + 1
+            while j < len(srt) and (mp[srt[j]][0], mp[srt[j]][1], mp[srt[j]][2]) == \
+                    (mp[srt[i]][0], mp[srt[i]][1], mp[srt[i]][2]):
+                j += 1
+            cl = srt[i:j]
+            if len(cl) > 1 and len(cl) < len(group):
+                out.extend(resolve(cl))          # partly separated → re-apply head-to-head
+            elif len(cl) > 1:
+                out.extend(sorted(cl, key=ov, reverse=True))   # unbreakable by H2H → overall stats
+            else:
+                out.append(cl[0])
+            i = j
+        return out
+
+    bp, out, i = sorted(names, key=lambda n: pts[n], reverse=True), [], 0
+    while i < len(bp):                            # cluster by equal points, then resolve each block
+        j = i + 1
+        while j < len(bp) and pts[bp[j]] == pts[bp[i]]:
+            j += 1
+        cl = bp[i:j]
+        out.extend(resolve(cl) if len(cl) > 1 else [cl[0]])
+        i = j
+    return out
+
+
+def third_place_odds(N=4000):
+    """Monte-Carlo advancement odds per team (2026 format: top 2 of each group + 8 best 3rds → R32).
+
+    For each of N trials:
+      1. every UNPLAYED group game gets a scoreline from independent Poisson draws whose means come
+         from each side's goals-for/against pace so far (shrunk to the tournament avg), with a mild
+         home edge;
+      2. each group is ranked by the FIFA key (points → goal difference → goals for → fair play /
+         fewer cards);
+      3. the 12 third-placed teams are ranked by the same key and the best 8 advance.
+
+    Returns, per team:
+      adv  — P(reach R32)               %    (top-2 OR a best-8 third)
+      pos  — {p1,p2,p3,p4}              %    final group-position distribution
+             t3                         %    P(finish 3rd AND make the best-8)
+      could3 — teams that can still finish 3rd in their group
+    Recomputed only when a match finishes (cached by the finished-results signature)."""
+    sig = _finished_signature()                 # recompute only when a match has finished
+    cached, _ = _read_cache("advodds", 10 ** 9)
+    if cached is not None and cached.get("sig") == sig:
+        return cached.get("data")
+    base, grp, cards = {}, {}, {}
+    for g in get_standings().get("groups", []):
+        L = re.sub(r"(?i)^group\s*", "", g.get("group") or "").strip()
+        for r in g.get("table", []):
+            nm = (r.get("team") or {}).get("name")
+            if not nm:
+                continue
+            base[nm] = {"pts": r.get("points", 0) or 0, "gf": r.get("goalsFor", 0) or 0,
+                        "ga": r.get("goalsAgainst", 0) or 0, "p": r.get("playedGames", 0) or 0}
+            cards[nm] = (r.get("yc", 0) or 0) + 3 * (r.get("rc", 0) or 0)
+            grp.setdefault(L, []).append(nm)
+    nm2L = {nm: L for L, names in grp.items() for nm in names}
+    # head-to-head needs the played results among each group's teams
+    fixed_by_L = {}
+    for m in get_matches().get("matches", []):
+        if m.get("stage") != "GROUP_STAGE" or m.get("status") != "FINISHED":
+            continue
+        h = (m.get("home") or {}).get("name"); a = (m.get("away") or {}).get("name")
+        sc = m.get("score") or {}; hs, asc = sc.get("home"), sc.get("away")
+        if h in base and a in base and hs is not None and asc is not None and nm2L.get(h):
+            fixed_by_L.setdefault(nm2L[h], []).append((h, a, hs, asc))
+    AVG, KK = 1.3, 2.0   # shrink goal pace toward the tournament average
+    rate = {nm: {"atk": (b["gf"] + AVG * KK) / (b["p"] + KK), "dfn": (b["ga"] + AVG * KK) / (b["p"] + KK)}
+            for nm, b in base.items()}
+    rem = [((m.get("home") or {}).get("name"), (m.get("away") or {}).get("name"))
+           for m in get_matches().get("matches", [])
+           if m.get("stage") == "GROUP_STAGE" and m.get("status") != "FINISHED"
+           and (m.get("home") or {}).get("name") in base and (m.get("away") or {}).get("name") in base]
+
+    def pois(lam):
+        lam = min(lam, 8.0); cut = math.exp(-lam); k, p = 0, 1.0
+        while True:
+            k += 1; p *= random.random()
+            if p <= cut:
+                return k - 1
+    key = lambda n, pts, gf, ga: (pts[n], gf[n] - ga[n], gf[n], -cards.get(n, 0))
+    adv = {nm: 0 for nm in base}
+    third_cnt = {nm: 0 for nm in base}     # how often a team finishes 3rd in its group
+    # final group-position distribution: index 0..3 = 1st..4th
+    posc = {nm: [0, 0, 0, 0] for nm in base}
+    t3adv = {nm: 0 for nm in base}         # finished 3rd AND made the best-8 (advanced as a third)
+    for _ in range(N):
+        pts = {nm: base[nm]["pts"] for nm in base}
+        gf = {nm: base[nm]["gf"] for nm in base}
+        ga = {nm: base[nm]["ga"] for nm in base}
+        simres = {L: list(v) for L, v in fixed_by_L.items()}   # head-to-head results, this trial
+        for h, a in rem:
+            lh = max(.2, (rate[h]["atk"] + rate[a]["dfn"]) / 2 * 1.08)   # mild home edge
+            la = max(.2, (rate[a]["atk"] + rate[h]["dfn"]) / 2 * 0.94)
+            gh, gaw = pois(lh), pois(la)
+            gf[h] += gh; ga[h] += gaw; gf[a] += gaw; ga[a] += gh
+            if gh > gaw:
+                pts[h] += 3
+            elif gaw > gh:
+                pts[a] += 3
+            else:
+                pts[h] += 1; pts[a] += 1
+            L = nm2L.get(h)
+            if L:
+                simres.setdefault(L, []).append((h, a, gh, gaw))
+        adv_set, thirds = set(), []
+        for L, names in grp.items():
+            order = _rank_group_2026(names, pts, gf, ga, cards, simres.get(L, []))
+            for i, n in enumerate(order[:4]):
+                posc[n][i] += 1                    # record final position 1st..4th
+            if order:
+                adv_set.add(order[0])
+            if len(order) > 1:
+                adv_set.add(order[1])
+            if len(order) > 2:
+                thirds.append(order[2]); third_cnt[order[2]] += 1
+        thirds.sort(key=lambda n: key(n, pts, gf, ga), reverse=True)
+        best3 = set(thirds[:8])                     # the 8 best third-placed teams advance
+        for n in best3:
+            adv_set.add(n); t3adv[n] += 1
+        for n in adv_set:
+            adv[n] += 1
+    pct = lambda c: round(100 * c / N)
+    out = {"adv": {nm: pct(adv[nm]) for nm in base},
+           # per-team final-position probabilities + P(advance as a 3rd place)
+           "pos": {nm: {"p1": pct(posc[nm][0]), "p2": pct(posc[nm][1]),
+                        "p3": pct(posc[nm][2]), "p4": pct(posc[nm][3]),
+                        "t3": pct(t3adv[nm])} for nm in base},
+           "could3": [nm for nm in base if third_cnt[nm] > 0]}   # teams that can still finish 3rd
+    _write_cache("advodds", {"sig": sig, "data": out})
+    return out
+
+
 def get_team(team_id):
     raw, source = fd_get(f"/teams/{team_id}", f"team-{team_id}", ttl=10 ** 9)  # squad/coach static
     if raw is None and CONFIG.get("use_mock_when_unavailable", True):
@@ -1082,10 +1242,160 @@ def tsdb_player_clubinfo(name):
     return {"club": club, "clubCountry": tsdb_team_country(club) if club else None, "photo": photo}
 
 
+def player_names(name):
+    """Player name in en/ko/ja/zh via Wikipedia language links (e.g. 久保建英 / 구보 다케후사)."""
+    if not name:
+        return {"en": name}
+    res = {"en": name}
+    try:
+        url = ("https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&redirects=1"
+               "&lllimit=500&format=json&titles=" + urllib.parse.quote(name))
+        d = http_json(url, f"pname-{_norm(name)}", ttl=10 ** 9)
+        for p in (((d or {}).get("query") or {}).get("pages") or {}).values():
+            ll = {x.get("lang"): x.get("*") for x in (p.get("langlinks") or [])}
+            res = {"en": p.get("title") or name, "ko": ll.get("ko"), "ja": ll.get("ja"), "zh": ll.get("zh")}
+            break
+    except Exception:
+        pass
+    return res
+
+
+def _parse_box_stats(data):
+    """ESPN boxscore → {'home': {statName: value}, 'away': {...}} (possession, shots, corners, …)."""
+    out = {"home": {}, "away": {}}
+    for t in ((data.get("boxscore") or {}).get("teams") or []):
+        side = t.get("homeAway")
+        if side not in ("home", "away"):
+            continue
+        for s in (t.get("statistics") or []):
+            out[side][s.get("name")] = s.get("displayValue")
+    return out if (out["home"] or out["away"]) else None
+
+
+def _parse_subs(data, home_id, away_id):
+    """ESPN keyEvents → {'home': [{min,in,inPhoto,out,outPhoto}], 'away': [...]} substitutions."""
+    headshot = {}      # athlete id → headshot (same photos the lineup uses)
+    for r in (data.get("rosters") or []):
+        for e in (r.get("roster") or []):
+            a = e.get("athlete") or {}
+            hs = (a.get("headshot") or {}).get("href")
+            if a.get("id") and hs:
+                headshot[str(a.get("id"))] = hs
+
+    def photo(a):
+        return headshot.get(str(a.get("id") or "")) or tsdb_player_cached(a.get("displayName"))
+    out = {"home": [], "away": []}
+    for e in (data.get("keyEvents") or []):
+        if (e.get("type") or {}).get("type") != "substitution":
+            continue
+        ps = e.get("participants") or []
+        if len(ps) < 2:
+            continue
+        tid = str((e.get("team") or {}).get("id"))
+        side = "home" if tid == str(home_id) else "away" if tid == str(away_id) else None
+        if not side:
+            continue
+        pin, pout = ps[0].get("athlete") or {}, ps[1].get("athlete") or {}
+        txt = (e.get("text") or "").lower()
+        reason = "injury" if "injur" in txt else None      # ESPN: "… because of an injury"
+        out[side].append({"min": (e.get("clock") or {}).get("displayValue") or "",
+                          "in": pin.get("displayName"), "inPhoto": photo(pin),
+                          "out": pout.get("displayName"), "outPhoto": photo(pout), "reason": reason})
+    return out if (out["home"] or out["away"]) else None
+
+
+def _enrich_subs(m):
+    """Fill in sub players' photos from the (already-cached) TheSportsDB photos at response time,
+    so finished-match subs pick up photos as they get warmed — without rewriting the permanent cache."""
+    s = (m or {}).get("subs")
+    if not s:
+        return
+    missing = []
+    for arr in s.values():
+        for x in arr:
+            if not x.get("inPhoto"):
+                x["inPhoto"] = tsdb_player_cached(x.get("in"))
+                if not x["inPhoto"] and x.get("in"):
+                    missing.append(x["in"])
+            if not x.get("outPhoto"):
+                x["outPhoto"] = tsdb_player_cached(x.get("out"))
+                if not x["outPhoto"] and x.get("out"):
+                    missing.append(x["out"])
+    if missing:
+        warm_photos_bg(missing)
+
+
+def _parse_form(data, home_name, away_name):
+    """ESPN lastFiveGames → {'home': [{r,score,opp,atVs,date}], 'away': [...]} (recent W/D/L)."""
+    out = {"home": [], "away": []}
+    for blk in (data.get("lastFiveGames") or []):
+        nm = (blk.get("team") or {}).get("displayName")
+        side = "home" if _canon(nm) == _canon(home_name) else "away" if _canon(nm) == _canon(away_name) else None
+        if not side:
+            continue
+        for e in (blk.get("events") or [])[:5]:
+            op = e.get("opponent") or {}
+            out[side].append({"r": e.get("gameResult"), "score": e.get("score"),
+                              "opp": op.get("abbreviation") or op.get("displayName"),
+                              "atVs": e.get("atVs"), "date": (e.get("gameDate") or "")[:10]})
+    return out if (out["home"] or out["away"]) else None
+
+
+def _parse_h2h(data, home_name, away_name):
+    """ESPN headToHeadGames → home-perspective tally + recent meetings."""
+    blk = (data.get("headToHeadGames") or [None])[0]
+    if not blk:
+        return None
+    ref_home = _canon((blk.get("team") or {}).get("displayName")) == _canon(home_name)
+
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return 0
+    ev, w, dr, l = [], 0, 0, 0
+    for e in (blk.get("events") or [])[:6]:
+        opp_id = str((e.get("opponent") or {}).get("id") or "")
+        ref_was_home = str(e.get("homeTeamId")) != opp_id
+        hs, aw = _i(e.get("homeTeamScore")), _i(e.get("awayTeamScore"))
+        ref_sc, opp_sc = (hs, aw) if ref_was_home else (aw, hs)
+        hsc, asc = (ref_sc, opp_sc) if ref_home else (opp_sc, ref_sc)   # current home / away goals
+        hr = "W" if hsc > asc else "L" if asc > hsc else "D"
+        if hr == "W":
+            w += 1
+        elif hr == "L":
+            l += 1
+        else:
+            dr += 1
+        ev.append({"date": (e.get("gameDate") or "")[:10], "hs": hsc, "as": asc, "r": hr})
+    return {"tally": {"w": w, "d": dr, "l": l}, "events": ev} if ev else None
+
+
 def get_match_espn(espn_id):
-    """Match detail for a past-edition match (ESPN event id): score, events, venue, weather."""
+    """Match detail for a past-edition match (ESPN event id): score, events, venue, weather, stats."""
     saved, _ = _read_cache(f"match-final-{espn_id}", 10 ** 9)
     if saved is not None:
+        subs_old = bool(saved.get("subs")) and any("reason" not in x for arr in saved["subs"].values() for x in arr)
+        h2h_ev = (saved.get("h2h") or {}).get("events") or []
+        h2h_old = bool(h2h_ev) and "hs" not in h2h_ev[0]
+        need = (not saved.get("stats") or not saved.get("subs") or subs_old
+                or "form" not in saved or "h2h" not in saved or h2h_old)
+        if need:   # backfill/upgrade older cached finals
+            try:
+                d2 = http_json(f"{ESPN_BASE}/summary?event={espn_id}", f"espn-sum-{espn_id}", ttl=10 ** 9)
+                hn, an = (saved.get("home") or {}).get("name"), (saved.get("away") or {}).get("name")
+                st = _parse_box_stats(d2 or {})
+                sb = _parse_subs(d2 or {}, (saved.get("home") or {}).get("id"), (saved.get("away") or {}).get("id"))
+                if st:
+                    saved["stats"] = st
+                if sb:
+                    saved["subs"] = sb
+                saved["form"] = _parse_form(d2 or {}, hn, an)
+                saved["h2h"] = _parse_h2h(d2 or {}, hn, an)
+                _write_cache(f"match-final-{espn_id}", saved)
+            except Exception:
+                pass
+        _enrich_subs(saved)
         return {"match": saved}
     data = http_json(f"{ESPN_BASE}/summary?event={espn_id}", f"espn-sum-{espn_id}", ttl=60)
     if not data:
@@ -1111,13 +1421,17 @@ def get_match_espn(espn_id):
     utc = comp.get("date") or ""
     out = {"id": espn_id, "home": team(h), "away": team(a), "utcDate": utc, "status": status,
            "score": {"home": sc(h), "away": sc(a)}, "group": None, "espnMatched": True, "espnId": espn_id,
-           "events": events, "odds": odds, "attendance": None,
+           "events": events, "odds": odds, "attendance": None, "stats": _parse_box_stats(data),
+           "subs": _parse_subs(data, (h.get("team") or {}).get("id"), (a.get("team") or {}).get("id")),
+           "form": _parse_form(data, team(h)["name"], team(a)["name"]),
+           "h2h": _parse_h2h(data, team(h)["name"], team(a)["name"]),
            "venue": {"name": vname, "city": vcity, "country": vaddr.get("country"),
                      "image": ((venue_aerial(vname) or wiki_image(vname)) if vname else None),
                      "capacity": None, "surface": None},
            "weather": weather_at(vcity.split(",")[0].strip(), utc) if (vcity and utc) else {}}
     if status == "FINISHED":
         _write_cache(f"match-final-{espn_id}", out)
+    _enrich_subs(out)
     return {"match": out}
 
 
@@ -2723,6 +3037,20 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[warn] playerclub: {e}")
                 return self._json(200, {"club": None, "clubCountry": None})
+        if path == "/api/playername":
+            q = parse_qs(urlparse(self.path).query)
+            name = (q.get("name") or [""])[0]
+            try:
+                return self._json(200, player_names(name))
+            except Exception as e:
+                print(f"[warn] playername: {e}")
+                return self._json(200, {"en": name})
+        if path == "/api/advodds":
+            try:
+                return self._json(200, third_place_odds())
+            except Exception as e:
+                print(f"[warn] advodds: {e}")
+                return self._json(200, {})
         if path == "/api/match":
             q = parse_qs(urlparse(self.path).query)
             mid = (q.get("id") or [""])[0]
