@@ -1034,7 +1034,7 @@
   .advt-day { color: var(--gold); font-family: var(--mono); }
   .advt-chart { width: 100%; height: auto; display: block; }
   .advt-dot { stroke: var(--bg); stroke-width: 2; }
-  .advt-bigrow { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; }
+  .advt-bigrow { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; justify-content: flex-end; }
   .advt-big { font-weight: 800; font-size: 40px; line-height: 1; font-family: var(--mono); }
   .advt-big small { font-size: .34em; color: var(--mute); }
   .advt-stat { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border: 1px solid currentColor; border-radius: 8px; }
@@ -2497,9 +2497,8 @@ function renderAdvTrend(){
   function drawHl(){
     let s="";
     D.order.forEach(n=>{ if(n===_advSel) return; s+=`<path d="${pathOf(trendByName[n])}" fill="none" stroke="#7f8893" stroke-opacity=".42" stroke-width="1.4"/>`; });
-    const col = D.boards[_advSel].advanced ? "#34c759" : "#ef4444";   // green if through, red if out (matches the % below)
-    s+=`<path d="${pathOf(trendByName[_advSel])}" fill="none" stroke="${col}" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-    host.querySelector("#advtHl").innerHTML = s;
+    s+=`<path id="advtSelLine" d="${pathOf(trendByName[_advSel])}" fill="none" stroke="#34c759" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    host.querySelector("#advtHl").innerHTML = s;   // stroke recolored per step in renderAdvDay
   }
   const bingo = host.querySelector("#advtBingo");
   bingo.innerHTML = GL.map(L=>`<div class="advt-bc" data-g="${L}"><span class="g" style="${groupChipStyle(L)}">${L}</span><span class="m"></span><span class="n"></span><span class="l"></span></div>`).join("");
@@ -2525,19 +2524,23 @@ function renderAdvTrend(){
   function renderAdvDay(p){                           // p = visible position → abs checkpoint
     _advDay=p; const abs=vis[p], b=D.boards[_advSel], day=b.days[abs], sel=trendByName[_advSel];
     const okCol="#34c759", noCol="#ef4444";
+    // colour by THIS step's standing (within top-8 → green, else red) — matches the table
+    const inZone = (day.grpRank && day.grpRank<=2) || (day.rank3 && day.rank3[0]<=8);
+    const col = (day.grpRank || day.rank3) ? (inZone?okCol:noCol) : "var(--mute)";
     host.querySelector("#advtCursor").setAttribute("x1",X(p)); host.querySelector("#advtCursor").setAttribute("x2",X(p));
-    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", b.advanced?okCol:noCol);
+    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", col==="var(--mute)"?"#7f8893":col);
+    const selLine=host.querySelector("#advtSelLine"); if(selLine) selLine.setAttribute("stroke", col==="var(--mute)"?"#7f8893":col);
     const cur=(D.marks||[])[abs], dayL=host.querySelector("#advtDayL");
     let mk0=cur;                                     // show the match of THIS group's 3rd-place team (the wildcard-relevant one)
     if (cur){ const third=(D.groupThirds[abs][cur.L]||{}).team;
       const cand=third && (marksByGroup[cur.L]||[]).find(x=> x.h===third||x.a===third); if(cand) mk0=cand; }
     if (mk0){ dayL.innerHTML = `${groupLabel(mk0.L)} · ${flagImg(mk0.h,"sm")}${mk0.h} <b>${mk0.hs}-${mk0.as}</b> ${mk0.a}${flagImg(mk0.a,"sm")}`; }
     else { dayL.textContent = tr("advR2End"); }
-    const big=host.querySelector("#advtBig"); big.innerHTML = Math.round(day.adv)+'<small>%</small>'; big.style.color = b.advanced?okCol:noCol;
-    let st, col, fin=(abs===N-1);
-    if (day.grpRank && day.grpRank<=2){ st=tr("advAuto"); col=okCol; }
-    else if (day.rank3){ const ok=day.rank3[0]<=8; st=`${tr("third")} ${day.rank3[0]}/${day.rank3[1]} · `+(fin?(b.advanced?tr("clinched"):tr("advElimFixed")):(ok?tr("advInZone"):tr("advOutZone"))); col=(fin?b.advanced:ok)?okCol:noCol; }
-    else { st=tr("advTba"); col="var(--mute)"; }
+    const big=host.querySelector("#advtBig"); big.innerHTML = Math.round(day.adv)+'<small>%</small>'; big.style.color = col;
+    let st, fin=(abs===N-1);
+    if (day.grpRank && day.grpRank<=2) st=tr("advAuto");
+    else if (day.rank3){ const ok=day.rank3[0]<=8; st=`${tr("third")} ${day.rank3[0]}/${day.rank3[1]} · `+(fin?(b.advanced?tr("clinched"):tr("advElimFixed")):(ok?tr("advInZone"):tr("advOutZone"))); }
+    else st=tr("advTba");
     const stEl=host.querySelector("#advtStat"); stEl.textContent=st; stEl.style.color=col;
     const favset=new Set(day.favL);
     GL.forEach(L=>{ const el=bcells[L], mk=el.querySelector(".m"), nm=el.querySelector(".n"), ln=el.querySelector(".l");
