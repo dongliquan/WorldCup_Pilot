@@ -985,11 +985,13 @@
   .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
   .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
   .advt-ctrl { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
-  .advt-replay { cursor: pointer; border: 1px solid var(--gold); color: #1a1205; font-family: inherit;
-    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); font-weight: 800; border-radius: 8px;
+  .advt-replay { cursor: pointer; border: 1px solid #3f7bd6; color: #fff; font-family: inherit;
+    background: linear-gradient(180deg, #5b9bff, #3f7bd6); font-weight: 800; border-radius: 8px;
     padding: 5px 11px; font-size: 12px; white-space: nowrap; }
-  .advt-prog { flex: 1; height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
-  .advt-prog-fill { height: 100%; width: 0%; background: var(--gold); border-radius: 999px; transition: width .15s linear; }
+  .advt-prog { flex: 1; height: 8px; background: var(--line); border-radius: 999px; position: relative; cursor: pointer; touch-action: none; }
+  .advt-prog-fill { height: 100%; width: 0%; background: #5b9bff; border-radius: 999px; position: relative; }
+  .advt-prog-fill::after { content: ""; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; border-radius: 50%; background: #5b9bff; border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.45); }
   .advt-tbl { width: 100%; border-collapse: collapse; }
   .advt-tbl th { font-size: 10px; color: var(--mute); font-weight: 600; text-align: left; padding: 5px 6px;
     border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
@@ -2555,6 +2557,14 @@ function renderAdvTrend(){
 
   tbody.addEventListener("click", e=>{ const row=e.target.closest(".advt-row"); if(row) selectAdv(decodeURIComponent(row.dataset.team)); });
   host.querySelector("#advtReplay").addEventListener("click", playAnim);   // replay current team's run
+  // progress bar doubles as a scrubber — click/drag the dot to pick a match
+  const track=host.querySelector(".advt-prog"); let dragging=false;
+  const seek=(clientX)=>{ const r=track.getBoundingClientRect(); let f=r.width?(clientX-r.left)/r.width:0;
+    f=Math.max(0,Math.min(1,f)); if(_advTimer){ clearInterval(_advTimer); _advTimer=null; } renderAdvDay(Math.round(f*(M-1))); };
+  track.addEventListener("pointerdown", e=>{ dragging=true; try{track.setPointerCapture(e.pointerId);}catch(_){} seek(e.clientX); });
+  track.addEventListener("pointermove", e=>{ if(dragging) seek(e.clientX); });
+  track.addEventListener("pointerup", ()=> dragging=false);
+  track.addEventListener("pointercancel", ()=> dragging=false);
   vis = computeVis(); M = vis.length; drawChart();  // 12 group-resolution checkpoints (+ baseline), same for all teams
   selectAdv(_advSel);                               // initial team auto-plays
 }
