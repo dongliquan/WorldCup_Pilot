@@ -974,7 +974,7 @@
   .gmini-t .gmcd { font-size: 10px; white-space: nowrap; }
 
   /* ===== advancement-trend (Groups tab: day-by-day R32 race + wildcard bingo) ===== */
-  .advt-wrap { margin-top: 30px; }
+  .advt-wrap { max-width: 1500px; margin: 30px auto 0; }
   .advt-head { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
@@ -982,9 +982,12 @@
   @media (max-width: 900px) { .advt-meta { grid-template-columns: repeat(3,1fr); } }
   @media (max-width: 560px) { .advt-meta { grid-template-columns: repeat(2,1fr); } }
   .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 12px;
-    padding: 10px 11px; background: var(--glass); color: var(--text); display: flex; flex-direction: column;
-    gap: 3px; position: relative; font-family: inherit; transition: border-color .15s, transform .15s; }
+    padding: 8px 11px; background: var(--glass); color: var(--text); display: flex; flex-direction: column;
+    gap: 2px; position: relative; overflow: hidden; font-family: inherit; transition: border-color .15s, transform .15s; }
   .advt-cell:hover { border-color: var(--line-2); transform: translateY(-1px); }
+  .advt-bg { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); height: 168%; width: auto;
+    opacity: .12; pointer-events: none; border-radius: 4px; }
+  .advt-cell > *:not(.advt-bg) { position: relative; z-index: 1; }
   .advt-cell.adv { border-left: 3px solid #34c759; }
   .advt-cell.out { border-left: 3px solid #ef4444; opacity: .82; }
   .advt-cell.sel { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; opacity: 1; }
@@ -995,8 +998,8 @@
   .advt-cell .nm { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 6px; }
   .advt-cell .gp { font-size: 10px; color: var(--mute); }
   .advt-cell .vf { font-size: 11px; font-weight: 800; margin-top: 1px; }
-  .advt-flag { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; flex: none; }
-  .advt-flag.sm { width: 17px; height: 12px; }
+  .advt-flag { width: 26px; height: 18px; object-fit: cover; border-radius: 3px; flex: none; }
+  .advt-flag.sm { width: 22px; height: 15px; }
   .advt-metanote { font-size: 12px; color: var(--mute); margin: 10px 0 16px; }
   .advt-deck { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
   @media (max-width: 820px) { .advt-deck { grid-template-columns: 1fr; } }
@@ -1018,7 +1021,8 @@
     display: flex; flex-direction: column; gap: 3px; position: relative; background: var(--glass); }
   .advt-bc .g { font-size: 9px; font-weight: 800; letter-spacing: .04em; align-self: flex-start; padding: 1px 6px; border-radius: 5px; }
   .advt-bc .m { position: absolute; top: 7px; right: 9px; font-weight: 800; font-family: var(--mono); }
-  .advt-bc .n { font-weight: 700; font-size: 12px; line-height: 1.1; display: flex; align-items: center; gap: 5px; }
+  .advt-bc .n { font-weight: 700; font-size: 11.5px; line-height: 1.18; overflow-wrap: anywhere; }
+  .advt-bc .n .advt-flag { vertical-align: -3px; margin-right: 5px; }
   .advt-bc .l { font-size: 10px; color: var(--mute); font-family: var(--mono); }
   .advt-bc.fav { border-color: rgba(52,199,89,.45); } .advt-bc.fav .m { color: #34c759; }
   .advt-bc.risk { border-color: rgba(239,68,68,.4); } .advt-bc.risk .m { color: #ef4444; }
@@ -2397,7 +2401,7 @@ function renderGroups(){
 }
 
 /* ---------- advancement trend: day-by-day R32 race + 3rd-place wildcard bingo ---------- */
-let _advData = undefined, _advSel = null, _advDay = null, _advTimer = null, _advPlayed = false;
+let _advData = undefined, _advSel = null, _advDay = null, _advTimer = null, _advPaused = false;
 function _advReduce(){ try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } }
 function renderAdvTrend(){
   const host = document.getElementById("advtrend"); if (!host) return;
@@ -2412,6 +2416,7 @@ function renderAdvTrend(){
   const N = D.labels.length, GL = D.groupsList;
   if (!_advSel || !D.boards[_advSel]) _advSel = D.boards["South Korea"] ? "South Korea" : D.order[0];   // default: Korea
   if (_advDay == null || _advDay >= N) _advDay = N - 1;
+  if (_advTimer){ clearInterval(_advTimer); _advTimer = null; }   // kill any timer from a prior render
   const trendByName = {}; D.teams.forEach(t=> trendByName[t.name] = t.trend);
   const advCount = D.order.filter(n=> D.boards[n].advanced).length;
   // flag + abbreviation lookups from the standings already in memory
@@ -2423,6 +2428,7 @@ function renderAdvTrend(){
 
   const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
     return `<button class="advt-cell ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}">
+      <img class="advt-bg" src="${crestOf(n)}" onerror="this.remove()" alt="">
       <span class="rk">${tr("third")} #${r}</span><span class="mk">${b.advanced?'✓':'✕'}</span>
       <span class="nm">${flagImg(n)}${n}</span><span class="gp">${groupLabel(b.group)} · ${tr("advPeak")} ${Math.round(b.peak)}%</span>
       <span class="vf">${b.advanced?tr("advAuto"):tr("eliminated")}</span></button>`; }).join("");
@@ -2487,11 +2493,11 @@ function renderAdvTrend(){
     const stEl=host.querySelector("#advtStat"); stEl.textContent=st; stEl.style.color=col;
     const favset=new Set(day.favL);
     GL.forEach(L=>{ const el=bcells[L], mk=el.querySelector(".m"), nm=el.querySelector(".n"), ln=el.querySelector(".l");
-      if (L===b.group){ el.className="advt-bc own"; mk.textContent="●"; nm.innerHTML=flagImg(_advSel,"sm")+tlaOf(_advSel); ln.textContent=tr("advOwnGroup"); return; }
+      if (L===b.group){ el.className="advt-bc own"; mk.textContent="●"; nm.innerHTML=flagImg(_advSel,"sm")+_advSel; ln.textContent=tr("advOwnGroup"); return; }
       const c=D.groupThirds[i][L];
       if (!c.has){ el.className="advt-bc nodata"; mk.textContent="·"; nm.textContent="—"; ln.textContent=tr("advNoGame"); return; }
       const fav=favset.has(L); el.className="advt-bc "+(fav?"fav":"risk"); mk.textContent=fav?"✓":"✕";
-      nm.innerHTML=flagImg(c.team,"sm")+tlaOf(c.team);
+      nm.innerHTML=flagImg(c.team,"sm")+c.team;
       ln.textContent=`${c.pts}·${c.gd>=0?'+':''}${c.gd}·${c.gf}`; });
     host.querySelector("#advtFav").textContent=`${day.fav}/11`;
     host.querySelector("#advtScrub").value=i;
@@ -2506,14 +2512,16 @@ function renderAdvTrend(){
 
   host.querySelectorAll(".advt-cell").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
   const scrub=host.querySelector("#advtScrub"), playBtn=host.querySelector("#advtPlay");
-  function stop(){ if(_advTimer){ clearInterval(_advTimer); _advTimer=null; } playBtn.textContent = (+scrub.value>=N-1?"↺ "+tr("advReplay"):"▶ "+tr("advPlay")); }
-  function play(){ if(_advTimer) return; if(+scrub.value>=N-1) renderAdvDay(0);
-    _advTimer=setInterval(()=>{ let i=+scrub.value; if(i>=N-1){ stop(); return; } renderAdvDay(i+1); }, 560); playBtn.textContent="⏸ "+tr("advPause"); }
+  function stop(){ _advPaused=true; if(_advTimer){ clearInterval(_advTimer); _advTimer=null; } playBtn.textContent="▶ "+tr("advPlay"); }
+  function play(){ _advPaused=false; if(_advTimer) return;
+    _advTimer=setInterval(()=>{ const i=+scrub.value; renderAdvDay(i>=N-1 ? 0 : i+1); }, 560);   // loops forever (current team)
+    playBtn.textContent="⏸ "+tr("advPause"); }
   playBtn.addEventListener("click", ()=> _advTimer?stop():play());
   scrub.addEventListener("input", ()=>{ stop(); renderAdvDay(+scrub.value); });
 
   drawChart(); selectAdv(_advSel);
-  if (!_advPlayed && !_advReduce()){ _advPlayed=true; renderAdvDay(0); play(); }
+  if (!_advPaused && !_advReduce()){ renderAdvDay(0); play(); }   // auto-loop unless the user paused
+  else renderAdvDay(_advDay);
 }
 
 /* ---------- notifications / subscriptions (teams & matches) ---------- */
