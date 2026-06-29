@@ -156,12 +156,9 @@ def app_root():
 
 
 def writable_root():
-    """Where config.json / cache / logs live (next to the .app when bundled)."""
+    """Where config.json / cache / logs live (next to the .exe when bundled)."""
     if getattr(sys, "frozen", False):
-        p = sys.executable
-        while p and not p.endswith(".app") and os.path.dirname(p) != p:
-            p = os.path.dirname(p)
-        return os.path.dirname(p) if p.endswith(".app") else os.path.dirname(sys.executable)
+        return os.path.dirname(sys.executable)   # single-file .exe → its folder
     return os.path.dirname(os.path.abspath(__file__))
 
 

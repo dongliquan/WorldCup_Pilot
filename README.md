@@ -3,20 +3,19 @@
 로컬/개인용 FIFA 월드컵 뷰어 + **예측 엔진**. `pywebview` 네이티브 창 + 백그라운드 로컬 서버(`127.0.0.1:8770`) +
 단일 HTML UI + PyInstaller 단일 실행 파일 패턴입니다. **무료 공개 소스만** 조합해 일정·결과·순위·대진·선수·영상과
 **자체 예측·AI 예측·예측 정확도 비교**까지 보여주며, **역대 월드컵(1930~2026)** 을 회차 선택으로 볼 수 있습니다.
-**Windows(.exe) / macOS(.app) 크로스플랫폼.** 상용 배포 용도가 아닙니다.
+**Windows(.exe) 전용.** 상용 배포 용도가 아닙니다.
 
 ## 구성
 
 | 파일 | 역할 |
 |------|------|
-| `worldcup.py`   | 런처 — 로컬 서버를 스레드로 띄우고 네이티브 창(WebView2/WebKit)을 엶. `.exe`/`.app` 자동 판별, 데스크톱 알림, 영상 팝업 |
+| `worldcup.py`   | 런처 — 로컬 서버를 스레드로 띄우고 네이티브 창(WebView2/Edge)을 엶. 데스크톱 알림(Windows 토스트), 작업표시줄 LIVE 뱃지, 영상 팝업 |
 | `server.py`     | `127.0.0.1:8770` 로컬 서버 — `/`(UI) + `/api/*`(여러 소스 프록시·정규화·디스크 캐시·예측·튜닝) |
 | `worldcup.html` | 단일 페이지 UI (다크/라이트, 일정·조별·대진·예측성적, 팀/선수/경기 상세, 예측·예상 라인업, 영상, 알림, 4개국어) |
 | `config.json`   | 시즌·캐시 설정 + (선택) AI 키 — **gitignore됨** |
 | `assets/`       | 정적 데이터(JSON) + 아이콘/로고 |
 | `model_params.json` / `tune_state.json` | 자가 튜닝된 예측 파라미터 + 마지막 튜닝 지문 (캐시 밖, 영구) |
 | `worldcup_win.spec` | **Windows** 단일 exe 빌드 |
-| `worldcup.spec` / `build.sh` | **macOS** .app 번들 빌드 |
 
 ### assets (정적 데이터 — 모두 편집 가능)
 - `country_info.json` — 국가별 수도·인구·면적·ISO2(국기/지도)·월드컵 역대 성적
@@ -106,18 +105,14 @@
 
 **개발 모드**
 ```
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (macOS: .venv/bin/pip)
-.venv/Scripts/python worldcup.py
+python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python worldcup.py
 ```
 서버만: `python server.py` → http://127.0.0.1:8770
 
 **Windows 빌드**
 ```
 pyinstaller --noconfirm worldcup_win.spec      # -> dist\WorldCupPilot.exe (단일 파일)
-```
-**macOS 빌드**
-```
-./build.sh                                      # -> dist/World Cup Pilot.app
 ```
 
 ## API (로컬)
