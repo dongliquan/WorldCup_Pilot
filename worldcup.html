@@ -2498,9 +2498,7 @@ function renderAdvTrend(){
   function drawHl(){
     let s="";
     D.order.forEach(n=>{ if(n===_advSel) return; s+=`<path d="${pathOf(trendByName[n])}" fill="none" stroke="#7f8893" stroke-opacity=".42" stroke-width="1.4"/>`; });
-    // selected team: future (not-yet-played) part white, completed part green/red — set in renderAdvDay
-    s+=`<path id="advtSelFuture" fill="none" stroke="#ffffff" stroke-opacity=".65" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    s+=`<path id="advtSelDone" fill="none" stroke="#34c759" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s+=`<g id="advtSelLine"></g>`;   // per-segment line: played = green/red by that step, upcoming = white (set in renderAdvDay)
     host.querySelector("#advtHl").innerHTML = s;
   }
   const bingo = host.querySelector("#advtBingo");
@@ -2533,9 +2531,15 @@ function renderAdvTrend(){
     host.querySelector("#advtCursor").setAttribute("x1",X(p)); host.querySelector("#advtCursor").setAttribute("x2",X(p));
     const lineCol = col==="var(--mute)"?"#7f8893":col;
     const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", lineCol);
-    const done=host.querySelector("#advtSelDone"), fut=host.querySelector("#advtSelFuture");
-    if (done){ done.setAttribute("d", pathRange(sel,0,p)); done.setAttribute("stroke", lineCol); }   // played → green/red
-    if (fut){ fut.setAttribute("d", pathRange(sel,p,M-1)); }                                          // not yet → white
+    const segG=host.querySelector("#advtSelLine");                        // recolour each segment by its own step's standing
+    if (segG){
+      const stCol=q=>{ const dd=D.boards[_advSel].days[vis[q]]; const iz=(dd.grpRank&&dd.grpRank<=2)||(dd.rank3&&dd.rank3[0]<=8);
+        return (dd.grpRank||dd.rank3)?(iz?okCol:noCol):"#7f8893"; };
+      let segs="";
+      for(let q=0;q<M-1;q++){ const played=(q+1)<=p, c=played?stCol(q+1):"#ffffff", op=played?"1":".6";
+        segs+=`<path d="M${X(q).toFixed(1)} ${Y(sel[vis[q]]).toFixed(1)} L${X(q+1).toFixed(1)} ${Y(sel[vis[q+1]]).toFixed(1)}" fill="none" stroke="${c}" stroke-opacity="${op}" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>`; }
+      segG.innerHTML=segs;
+    }
     const cur=(D.marks||[])[abs], dayL=host.querySelector("#advtDayL");
     let mk0=cur;                                     // show the match of THIS group's 3rd-place team (the wildcard-relevant one)
     if (cur){ const third=(D.groupThirds[abs][cur.L]||{}).team;
