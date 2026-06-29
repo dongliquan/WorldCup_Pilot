@@ -983,7 +983,7 @@
   @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 200px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; }
     .advt-sel-col { flex-direction: row; flex-wrap: wrap; max-height: none; } .advt-sel-col > .advt-cell { flex: 1 1 150px; } }
-  .advt-sel-col { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow: auto; padding-right: 2px; }
+  .advt-sel-col { display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
   .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px;
     background: var(--glass); color: var(--text); position: relative; overflow: hidden; font-family: inherit;
     display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; column-gap: 8px; transition: border-color .15s; }
@@ -2399,7 +2399,7 @@ function renderGroups(){
 }
 
 /* ---------- advancement trend: day-by-day R32 race + 3rd-place wildcard bingo ---------- */
-let _advData = undefined, _advSel = null, _advDay = null, _advTimer = null, _advPaused = false;
+let _advData = undefined, _advSel = null, _advDay = null, _advMatchH = null;
 function _advReduce(){ try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } }
 function renderAdvTrend(){
   const host = document.getElementById("advtrend"); if (!host) return;
@@ -2414,7 +2414,6 @@ function renderAdvTrend(){
   const N = D.labels.length, GL = D.groupsList;
   if (!_advSel || !D.boards[_advSel]) _advSel = D.boards["South Korea"] ? "South Korea" : D.order[0];   // default: Korea
   if (_advDay == null || _advDay >= N) _advDay = N - 1;
-  if (_advTimer){ clearInterval(_advTimer); _advTimer = null; }   // kill any timer from a prior render
   const trendByName = {}; D.teams.forEach(t=> trendByName[t.name] = t.trend);
   const advCount = D.order.filter(n=> D.boards[n].advanced).length;
   // flag + abbreviation lookups from the standings already in memory
@@ -2426,7 +2425,6 @@ function renderAdvTrend(){
 
   const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
     return `<button class="advt-cell ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
-      <img class="advt-bg" src="${crestOf(n)}" onerror="this.remove()" alt="">
       ${flagImg(n)}
       <span class="advt-cnm"><b>${n}</b><small>${tr("third")} #${r} · ${groupLabel(b.group)} · ${Math.round(b.peak)}%</small></span>
       <span class="mk">${b.advanced?'✓':'✕'}</span></button>`; }).join("");
@@ -2448,7 +2446,6 @@ function renderAdvTrend(){
     </div>
     <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>
     <div class="advt-trans">
-      <button class="advt-play" id="advtPlay">▶ ${tr("advPlay")}</button>
       <input type="range" id="advtScrub" min="0" max="${N-1}" value="${_advDay}" aria-label="timeline">
       <span class="advt-tl" id="advtTl">–</span>
     </div>`;
@@ -2511,17 +2508,21 @@ function renderAdvTrend(){
   }
 
   host.querySelectorAll(".advt-cell").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
-  const scrub=host.querySelector("#advtScrub"), playBtn=host.querySelector("#advtPlay");
-  function stop(){ _advPaused=true; if(_advTimer){ clearInterval(_advTimer); _advTimer=null; } playBtn.textContent="▶ "+tr("advPlay"); }
-  function play(){ _advPaused=false; if(_advTimer) return;
-    _advTimer=setInterval(()=>{ const i=+scrub.value; renderAdvDay(i>=N-1 ? 0 : i+1); }, 560);   // loops forever (current team)
-    playBtn.textContent="⏸ "+tr("advPause"); }
-  playBtn.addEventListener("click", ()=> _advTimer?stop():play());
-  scrub.addEventListener("input", ()=>{ stop(); renderAdvDay(+scrub.value); });
+  host.querySelector("#advtScrub").addEventListener("input", (e)=> renderAdvDay(+e.target.value));
 
-  drawChart(); selectAdv(_advSel);
-  if (!_advPaused && !_advReduce()){ renderAdvDay(0); play(); }   // auto-loop unless the user paused
-  else renderAdvDay(_advDay);
+  drawChart(); selectAdv(_advSel); renderAdvDay(_advDay);
+
+  // match the selector column's height to the chart / bingo cards (wide layout only)
+  _advMatchH = ()=>{
+    const sc = host.querySelector(".advt-sel-col");
+    const cards = host.querySelectorAll(".advt-deck3 > .advt-card");
+    if (!sc || !cards.length) return;
+    if (window.innerWidth <= 760){ sc.style.height = ""; sc.style.overflowY = ""; return; }
+    const h = Math.max(...[...cards].map(c=> c.offsetHeight));
+    if (h > 0){ sc.style.height = h + "px"; sc.style.overflowY = "auto"; }
+  };
+  _advMatchH(); setTimeout(()=> _advMatchH && _advMatchH(), 60);
+  if (!window._advResizeHooked){ window._advResizeHooked = true; window.addEventListener("resize", ()=> _advMatchH && _advMatchH()); }
 }
 
 /* ---------- notifications / subscriptions (teams & matches) ---------- */
