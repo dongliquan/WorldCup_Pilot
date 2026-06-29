@@ -990,6 +990,7 @@
     transition: .15s; flex: none; font-family: inherit; }
   .advt-replay:hover { color: var(--text); border-color: var(--gold); }
   .advt-prog { flex: 1; height: 7px; background: var(--line); border-radius: 999px; position: relative; cursor: pointer; touch-action: none; }
+  .advt-prog:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
   .advt-prog-fill { height: 100%; width: 0%; background: var(--gold); border-radius: 999px; position: relative; }
   .advt-prog-fill::after { content: ""; position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
     width: 12px; height: 12px; border-radius: 50%; background: var(--gold); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
@@ -2506,37 +2507,37 @@ function renderAdvTrend(){
   const bcells = {}; bingo.querySelectorAll(".advt-bc").forEach(el=> bcells[el.dataset.g]=el);
   const tbody = host.querySelector("#advtMeta");
 
-  function renderTable(abs){                          // live leaderboard at this checkpoint — re-sorted by current R32%
-    const rows = D.order.map(n=>{ const d=D.boards[n].days[abs];
-      return {n, g:D.boards[n].group, adv:d.adv, rank3:d.rank3, grpRank:d.grpRank, line:d.line}; });
-    rows.sort((x,y)=> y.adv-x.adv || ((x.rank3?x.rank3[0]:99)-(y.rank3?y.rank3[0]:99))
-      || y.line[0]-x.line[0] || y.line[1]-x.line[1] || (x.n<y.n?-1:1));
-    tbody.innerHTML = rows.map((rw,i)=>{
-      const inZone = (rw.grpRank&&rw.grpRank<=2) || (rw.rank3 && rw.rank3[0]<=8);
-      return `<tr class="advt-row ${inZone?'adv':'out'}${i<8?' zone':''}${i===7?' cut8':''}${rw.n===_advSel?' sel':''}" data-team="${encodeURIComponent(rw.n)}" title="${rw.n}">
+  let sortedByVis=[], posByVis=[];
+  function computeRanks(){                            // rank all 12 contenders by R32% at each checkpoint (top 8 = advancing)
+    const cmp=abs=>((x,y)=>{ const dx=D.boards[x].days[abs], dy=D.boards[y].days[abs];
+      return dy.adv-dx.adv || ((dx.rank3?dx.rank3[0]:99)-(dy.rank3?dy.rank3[0]:99))
+        || dy.line[0]-dx.line[0] || dy.line[1]-dx.line[1] || (x<y?-1:1); });
+    sortedByVis = vis.map(abs=> [...D.order].sort(cmp(abs)));
+    posByVis = sortedByVis.map(ord=>{ const mp={}; ord.forEach((n,i)=> mp[n]=i+1); return mp; });
+  }
+  const inZoneAt=(p)=> (posByVis[p][_advSel]||99) <= 8;   // selected team within the top-8 (advancing) at step p
+  function renderTable(p){                            // live leaderboard re-sorted by R32% each step; top 8 = advancing
+    const abs=vis[p], rows=sortedByVis[p];
+    tbody.innerHTML = rows.map((n,i)=>{ const d=D.boards[n].days[abs], zone=i<8;
+      return `<tr class="advt-row ${zone?'adv zone':'out'}${i===7?' cut8':''}${n===_advSel?' sel':''}" data-team="${encodeURIComponent(n)}" title="${n}">
         <td class="pos">${i+1}</td>
-        <td><span class="advt-gchip" style="${groupChipStyle(rw.g)}">${rw.g}</span></td>
-        <td class="tnm">${flagImg(rw.n,"sm")}<span>${rw.n}</span></td>
-        <td class="tnum">${rw.line[0]}</td>
-        <td class="tnum">${rw.line[1]>=0?'+':''}${rw.line[1]}</td>
-        <td class="tpr">${Math.round(rw.adv)}%</td></tr>`; }).join("");
+        <td><span class="advt-gchip" style="${groupChipStyle(D.boards[n].group)}">${D.boards[n].group}</span></td>
+        <td class="tnm">${flagImg(n,"sm")}<span>${n}</span></td>
+        <td class="tnum">${d.line[0]}</td>
+        <td class="tnum">${d.line[1]>=0?'+':''}${d.line[1]}</td>
+        <td class="tpr">${Math.round(d.adv)}%</td></tr>`; }).join("");
   }
 
   function renderAdvDay(p){                           // p = visible position → abs checkpoint
     _advDay=p; const abs=vis[p], b=D.boards[_advSel], day=b.days[abs], sel=trendByName[_advSel];
     const okCol="#34c759", noCol="#ef4444";
-    // colour by THIS step's standing (within top-8 → green, else red) — matches the table
-    const inZone = (day.grpRank && day.grpRank<=2) || (day.rank3 && day.rank3[0]<=8);
-    const col = (day.grpRank || day.rank3) ? (inZone?okCol:noCol) : "var(--mute)";
+    const col = inZoneAt(p) ? okCol : noCol;          // colour by THIS step's R32% rank (top-8 → green) — matches the table
     host.querySelector("#advtCursor").setAttribute("x1",X(p)); host.querySelector("#advtCursor").setAttribute("x2",X(p));
-    const lineCol = col==="var(--mute)"?"#7f8893":col;
-    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", lineCol);
-    const segG=host.querySelector("#advtSelLine");                        // recolour each segment by its own step's standing
+    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", col);
+    const segG=host.querySelector("#advtSelLine");                        // each played segment coloured by that step's rank
     if (segG){
-      const stCol=q=>{ const dd=D.boards[_advSel].days[vis[q]]; const iz=(dd.grpRank&&dd.grpRank<=2)||(dd.rank3&&dd.rank3[0]<=8);
-        return (dd.grpRank||dd.rank3)?(iz?okCol:noCol):"#7f8893"; };
       let segs="";
-      for(let q=0;q<M-1;q++){ const played=(q+1)<=p, c=played?stCol(q+1):"#ffffff", op=played?"1":".6";
+      for(let q=0;q<M-1;q++){ const played=(q+1)<=p, c=played?(inZoneAt(q+1)?okCol:noCol):"#ffffff", op=played?"1":".6";
         segs+=`<path d="M${X(q).toFixed(1)} ${Y(sel[vis[q]]).toFixed(1)} L${X(q+1).toFixed(1)} ${Y(sel[vis[q+1]]).toFixed(1)}" fill="none" stroke="${c}" stroke-opacity="${op}" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>`; }
       segG.innerHTML=segs;
     }
@@ -2547,10 +2548,9 @@ function renderAdvTrend(){
     if (mk0){ dayL.innerHTML = `${groupLabel(mk0.L)} · ${flagImg(mk0.h,"sm")}${mk0.h} <b>${mk0.hs}-${mk0.as}</b> ${mk0.a}${flagImg(mk0.a,"sm")}`; }
     else { dayL.textContent = tr("advR2End"); }
     const big=host.querySelector("#advtBig"); big.innerHTML = Math.round(day.adv)+'<small>%</small>'; big.style.color = col;
-    let st, fin=(abs===N-1);
-    if (day.grpRank && day.grpRank<=2) st=tr("advAuto");
-    else if (day.rank3){ const ok=day.rank3[0]<=8; st=`${tr("third")} ${day.rank3[0]}/${day.rank3[1]} · `+(fin?(b.advanced?tr("clinched"):tr("advElimFixed")):(ok?tr("advInZone"):tr("advOutZone"))); }
-    else st=tr("advTba");
+    const pos=posByVis[p][_advSel], fin=(abs===N-1);
+    const st = fin ? `#${pos} · ${b.advanced?tr("clinched"):tr("advElimFixed")}`
+                   : `#${pos}/${D.order.length} · ${pos<=8?tr("advInZone"):tr("advOutZone")}`;
     const stEl=host.querySelector("#advtStat"); stEl.textContent=st; stEl.style.color=col;
     const favset=new Set(day.favL);
     GL.forEach(L=>{ const el=bcells[L], mk=el.querySelector(".m"), nm=el.querySelector(".n"), ln=el.querySelector(".l");
@@ -2562,7 +2562,7 @@ function renderAdvTrend(){
       ln.textContent=`${c.pts}·${c.gd>=0?'+':''}${c.gd}·${c.gf}`; });
     host.querySelector("#advtFav").textContent=`${day.fav}/11`;
     host.querySelector("#advtProg").style.width = (M<=1 ? 100 : (p/(M-1)*100)) + "%";
-    renderTable(abs);                                // table re-sorts by current R32% each step
+    renderTable(p);                                  // table re-sorts by current R32% each step
   }
   function playAnim(){
     if (_advTimer){ clearInterval(_advTimer); _advTimer=null; }
@@ -2586,7 +2586,16 @@ function renderAdvTrend(){
   track.addEventListener("pointermove", e=>{ if(dragging) seek(e.clientX); });
   track.addEventListener("pointerup", ()=> dragging=false);
   track.addEventListener("pointercancel", ()=> dragging=false);
-  vis = computeVis(); M = vis.length; drawChart();  // 12 group-resolution checkpoints (+ baseline), same for all teams
+  vis = computeVis(); M = vis.length; computeRanks(); drawChart();  // 12 group-resolution checkpoints (+ baseline)
+  // progress bar is keyboard-controllable: ←/→ step, Home/End jump
+  track.tabIndex = 0;
+  track.addEventListener("keydown", e=>{
+    let np = _advDay;
+    if (e.key==="ArrowRight"||e.key==="ArrowUp") np=Math.min(M-1,_advDay+1);
+    else if (e.key==="ArrowLeft"||e.key==="ArrowDown") np=Math.max(0,_advDay-1);
+    else if (e.key==="Home") np=0; else if (e.key==="End") np=M-1; else return;
+    e.preventDefault(); if(_advTimer){ clearInterval(_advTimer); _advTimer=null; } renderAdvDay(np);
+  });
   selectAdv(_advSel);                               // initial team auto-plays
 }
 
