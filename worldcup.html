@@ -978,31 +978,29 @@
   .advt-head { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
-  .advt-meta { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
-  @media (max-width: 900px) { .advt-meta { grid-template-columns: repeat(3,1fr); } }
-  @media (max-width: 560px) { .advt-meta { grid-template-columns: repeat(2,1fr); } }
-  .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 12px;
-    padding: 8px 11px; background: var(--glass); color: var(--text); display: flex; flex-direction: column;
-    gap: 2px; position: relative; overflow: hidden; font-family: inherit; transition: border-color .15s, transform .15s; }
-  .advt-cell:hover { border-color: var(--line-2); transform: translateY(-1px); }
-  .advt-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-    opacity: .10; pointer-events: none; }
-  .advt-cell > *:not(.advt-bg) { position: relative; z-index: 1; }
+  /* layout: country selector | chart | bingo (left → right) */
+  .advt-deck3 { display: grid; grid-template-columns: 230px minmax(0,1fr) 330px; gap: 14px; align-items: start; margin-top: 4px; }
+  @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 200px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
+  @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; }
+    .advt-sel-col { flex-direction: row; flex-wrap: wrap; max-height: none; } .advt-sel-col > .advt-cell { flex: 1 1 150px; } }
+  .advt-sel-col { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow: auto; padding-right: 2px; }
+  .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px;
+    background: var(--glass); color: var(--text); position: relative; overflow: hidden; font-family: inherit;
+    display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; column-gap: 8px; transition: border-color .15s; }
+  .advt-cell:hover { border-color: var(--line-2); }
   .advt-cell.adv { border-left: 3px solid #34c759; }
-  .advt-cell.out { border-left: 3px solid #ef4444; opacity: .82; }
+  .advt-cell.out { border-left: 3px solid #ef4444; opacity: .85; }
   .advt-cell.sel { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; opacity: 1; }
-  .advt-cell .rk { font-size: 10px; color: var(--mute); letter-spacing: .04em; font-family: var(--mono); }
-  .advt-cell .mk { position: absolute; top: 9px; right: 11px; font-weight: 800; font-family: var(--mono); font-size: 13px; }
-  .advt-cell.adv .mk, .advt-cell.adv .vf { color: #34c759; }
-  .advt-cell.out .mk, .advt-cell.out .vf { color: #ef4444; }
-  .advt-cell .nm { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 6px; }
-  .advt-cell .gp { font-size: 10px; color: var(--mute); }
-  .advt-cell .vf { font-size: 11px; font-weight: 800; margin-top: 1px; }
+  .advt-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .10; pointer-events: none; }
+  .advt-cell > *:not(.advt-bg) { position: relative; z-index: 1; }
+  .advt-cnm { min-width: 0; display: flex; flex-direction: column; line-height: 1.16; }
+  .advt-cnm b { font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
+  .advt-cnm small { font-size: 10px; color: var(--mute); font-family: var(--mono); }
+  .advt-cell .mk { font-weight: 800; font-family: var(--mono); font-size: 14px; }
+  .advt-cell.adv .mk { color: #34c759; } .advt-cell.out .mk { color: #ef4444; }
   .advt-flag { width: 26px; height: 18px; object-fit: cover; border-radius: 3px; flex: none; }
   .advt-flag.sm { width: 22px; height: 15px; }
-  .advt-metanote { font-size: 12px; color: var(--mute); margin: 10px 0 16px; }
-  .advt-deck { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
-  @media (max-width: 820px) { .advt-deck { grid-template-columns: 1fr; } }
+  .advt-metanote { font-size: 12px; color: var(--mute); margin: 12px 0 0; }
   .advt-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--glass); }
   .advt-kick { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px;
     color: var(--mute); margin-bottom: 8px; font-weight: 700; gap: 8px; }
@@ -2427,28 +2425,28 @@ function renderAdvTrend(){
   const flagImg = (n,cls)=> `<img class="advt-flag${cls?' '+cls:''}" src="${crestOf(n)}" onerror="this.src='${flagFb}'" alt="">`;
 
   const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
-    return `<button class="advt-cell ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}">
+    return `<button class="advt-cell ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
       <img class="advt-bg" src="${crestOf(n)}" onerror="this.remove()" alt="">
-      <span class="rk">${tr("third")} #${r}</span><span class="mk">${b.advanced?'✓':'✕'}</span>
-      <span class="nm">${flagImg(n)}${n}</span><span class="gp">${groupLabel(b.group)} · ${tr("advPeak")} ${Math.round(b.peak)}%</span>
-      <span class="vf">${b.advanced?tr("advAuto"):tr("eliminated")}</span></button>`; }).join("");
+      ${flagImg(n)}
+      <span class="advt-cnm"><b>${n}</b><small>${tr("third")} #${r} · ${groupLabel(b.group)} · ${Math.round(b.peak)}%</small></span>
+      <span class="mk">${b.advanced?'✓':'✕'}</span></button>`; }).join("");
 
   host.innerHTML = `
     <div class="advt-head">🔮 ${tr("advRace")}</div>
     <div class="advt-sub">${tr("advRaceSub")}</div>
-    <div class="advt-meta">${meta}</div>
-    <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>
-    <div class="advt-deck">
+    <div class="advt-deck3">
+      <div class="advt-sel-col" id="advtMeta">${meta}</div>
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
         <svg class="advt-chart" id="advtChart" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${tr("advRace")}"></svg>
         <div class="advt-bigrow"><div class="advt-big" id="advtBig">––<small>%</small></div><div class="advt-stat" id="advtStat">–</div></div>
       </div>
-      <div class="advt-card">
+      <div class="advt-card advt-bingo-card">
         <div class="advt-kick"><span id="advtBingoT">${tr("advVsThirds")}</span><span class="advt-fav" id="advtFav">0/11</span></div>
         <div class="advt-bingo" id="advtBingo"></div>
       </div>
     </div>
+    <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>
     <div class="advt-trans">
       <button class="advt-play" id="advtPlay">▶ ${tr("advPlay")}</button>
       <input type="range" id="advtScrub" min="0" max="${N-1}" value="${_advDay}" aria-label="timeline">
