@@ -979,11 +979,24 @@
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
   /* layout: country selector | chart | bingo (left → right) */
-  .advt-deck3 { display: grid; grid-template-columns: 230px minmax(0,1fr) 330px; gap: 14px; align-items: start; margin-top: 4px; }
-  @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 200px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
-  @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; }
-    .advt-sel-col { flex-direction: row; flex-wrap: wrap; max-height: none; } .advt-sel-col > .advt-cell { flex: 1 1 150px; } }
-  .advt-sel-col { display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+  .advt-deck3 { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; align-items: start; margin-top: 4px; }
+  @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 280px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
+  @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
+  .advt-sel-col { padding-right: 2px; }
+  .advt-tbl { width: 100%; border-collapse: collapse; }
+  .advt-tbl th { font-size: 10px; color: var(--mute); font-weight: 600; text-align: left; padding: 5px 6px;
+    border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  .advt-tbl td { padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .advt-row { cursor: pointer; }
+  .advt-row:hover td { background: var(--glass-2); }
+  .advt-row.sel td { background: var(--glass-2); }
+  .advt-row.sel td.pos { box-shadow: inset 3px 0 0 var(--gold); }
+  .advt-row .pos { color: var(--mute); font-family: var(--mono); white-space: nowrap; }
+  .advt-gchip { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+  .advt-row .tnm { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+  .advt-row .tnm span { overflow-wrap: anywhere; }
+  .advt-row .tpr { font-weight: 800; font-family: var(--mono); text-align: right; }
+  .advt-row.adv .tpr { color: #34c759; } .advt-row.out .tpr { color: #ef4444; }
   .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px;
     background: var(--glass); color: var(--text); position: relative; overflow: hidden; font-family: inherit;
     display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; column-gap: 8px; transition: border-color .15s; }
@@ -2390,7 +2403,6 @@ function renderGroups(){
       <div class="gn-t">${tr("advFormat")}</div>
       <div class="gn-sub">${tr("rankGroupTitle")}</div>
       <ol class="gn-rule">${(GROUP_CRIT[LANG]||GROUP_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`
-    + thirdsTableHtml()
     + `<div class="groups-note">
       <div class="gn-sub">${tr("rankThirdTitle")}</div>
       <ol class="gn-rule">${(THIRD_CRIT[LANG]||THIRD_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`
@@ -2424,16 +2436,20 @@ function renderAdvTrend(){
   const flagImg = (n,cls)=> `<img class="advt-flag${cls?' '+cls:''}" src="${crestOf(n)}" onerror="this.src='${flagFb}'" alt="">`;
 
   const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
-    return `<button class="advt-cell ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
-      ${flagImg(n)}
-      <span class="advt-cnm"><b>${n}</b><small>${tr("third")} #${r} · ${groupLabel(b.group)} · ${Math.round(b.peak)}%</small></span>
-      <span class="mk">${b.advanced?'✓':'✕'}</span></button>`; }).join("");
+    const pct = Math.round(b.days[b.days.length-1].adv);
+    return `<tr class="advt-row ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
+      <td class="pos">#${r}</td>
+      <td><span class="advt-gchip" style="${groupChipStyle(b.group)}">${b.group}</span></td>
+      <td class="tnm">${flagImg(n,"sm")}<span>${n}</span></td>
+      <td class="tpr">${pct}%</td></tr>`; }).join("");
 
   host.innerHTML = `
     <div class="advt-head">🔮 ${tr("advRace")}</div>
     <div class="advt-sub">${tr("advRaceSub")}</div>
     <div class="advt-deck3">
-      <div class="advt-sel-col" id="advtMeta">${meta}</div>
+      <div class="advt-sel-col">
+        <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
+        <tbody id="advtMeta">${meta}</tbody></table></div>
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
         <svg class="advt-chart" id="advtChart" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${tr("advRace")}"></svg>
@@ -2501,13 +2517,13 @@ function renderAdvTrend(){
     host.querySelector("#advtTl").textContent = (i===0 ? tr("advR2End") : `${tr("advMatch")} ${i}/${N-1}`);
   }
   function selectAdv(n){ _advSel=n; const b=D.boards[n];
-    host.querySelectorAll(".advt-cell").forEach(el=> el.classList.toggle("sel", decodeURIComponent(el.dataset.team)===n));
+    host.querySelectorAll(".advt-row").forEach(el=> el.classList.toggle("sel", decodeURIComponent(el.dataset.team)===n));
     host.querySelector("#advtSel").innerHTML = `${flagImg(n,"sm")}${n} (${groupLabel(b.group)})`;
     host.querySelector("#advtBingoT").textContent = `${n} · ${tr("advVsThirds")}`;
     drawHl(); renderAdvDay(_advDay);
   }
 
-  host.querySelectorAll(".advt-cell").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
+  host.querySelectorAll(".advt-row").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
   host.querySelector("#advtScrub").addEventListener("input", (e)=> renderAdvDay(+e.target.value));
 
   drawChart(); selectAdv(_advSel); renderAdvDay(_advDay);
