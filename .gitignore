@@ -3,10 +3,13 @@ __pycache__/
 build/
 logs/
 config.json
-.DS_Store
 
 # build artifact (rebuilt via pyinstaller)
 *.exe
+
+# local analysis artifacts (generated, not part of the app)
+scratch_*.json
+korea_r32_telemetry.html
 
 # Keep the stable cached data in git (country/player/past-match info, ChatGPT picks,
 # tuned model) so a fresh clone works offline. Skip the big auto-refetchable blobs and

@@ -6,7 +6,7 @@ and caches Football-Data.org (https://docs.football-data.org/) so the native
 window can render fixtures, group standings and team details.
 
 Local / personal use only. The Football-Data.org token lives in config.json
-next to this file (or next to the .app when bundled) and is read at startup.
+next to this file (or next to the .exe when bundled) and is read at startup.
 
 API (all JSON unless noted):
   GET  /                      -> worldcup.html
@@ -44,6 +44,30 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+
+# ---- request-scoped memo ----------------------------------------------------
+# ThreadingHTTPServer runs one thread per request, but a single request (e.g. predict_match
+# or compute_accuracy) calls the heavy match-list parsers 10+ times — each re-reading and
+# re-parsing the same disk-cached JSON. A thread-local memo, cleared at the start of every
+# request (do_GET/do_POST), collapses those to one parse without changing cross-request
+# freshness. A force-revalidate caller (ttl=0) bypasses the memo so /api/refresh stays live.
+_req_local = threading.local()
+
+
+def _req_memo(key, producer, bypass=False):
+    cache = getattr(_req_local, "cache", None)
+    if cache is None:
+        cache = {}
+        _req_local.cache = cache
+    if not bypass and key in cache:
+        return cache[key]
+    val = producer()
+    cache[key] = val
+    return val
+
+
+def _req_memo_clear():
+    _req_local.cache = {}
 
 # ---- paths (overridable by the launcher when frozen) ------------------------
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -226,11 +250,21 @@ def _read_cache(key, ttl):
 
 def _write_cache(key, data):
     os.makedirs(CACHE_DIR, exist_ok=True)
+    path = _cache_file(key)
+    # Atomic: write to a unique temp file then os.replace (atomic on POSIX + Windows).
+    # ThreadingHTTPServer means concurrent requests may write the same key; without this a
+    # reader could observe a half-written file (caught as a parse error → stale/None fallback).
+    tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
     try:
-        with open(_cache_file(key), "w", encoding="utf-8") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f)
+        os.replace(tmp, path)
     except Exception as e:
         print(f"[warn] cache write {key}: {e}")
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def fd_get(path, cache_key, ttl=None):
@@ -470,7 +504,13 @@ _ESPN_STAGE = {"group-stage": "GROUP_STAGE", "round-of-32": "LAST_32", "round-of
 
 def get_matches_espn(year, ttl=10 ** 9):
     """Full match list from ESPN for an edition (one call per year). ttl is small for
-    the live edition (scores change) and permanent for finished past editions."""
+    the live edition (scores change) and permanent for finished past editions.
+    Memoized per request (ttl=0 bypasses) — the predict/accuracy paths call this many times."""
+    return _req_memo(("matches_espn", str(year)),
+                     lambda: _get_matches_espn(year, ttl), bypass=(ttl == 0))
+
+
+def _get_matches_espn(year, ttl):
     data = http_json(f"{ESPN_BASE}/scoreboard?dates={year}", f"espn-year-{year}", ttl=ttl)
     out = []
     for ev in (data or {}).get("events", []):
@@ -966,7 +1006,7 @@ def youtube_first_video(query):
     url = ("https://www.youtube.com/results?search_query="
            + urllib.parse.quote(query) + "&hl=en&gl=US")
     req = urllib.request.Request(url, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
     })
@@ -1183,6 +1223,7 @@ def _photo_sync_worker():
     photo queue stays responsive); re-checks periodically for teams added later (knockouts)."""
     time.sleep(8)                                   # let the server finish booting
     while True:
+        _req_memo_clear()                           # long-lived thread: drop last pass's memo so ttl=600 re-checks
         try:
             year = CONFIG.get("season")
             data = get_matches_espn(str(year), ttl=600) or {}
@@ -1372,7 +1413,12 @@ def _parse_h2h(data, home_name, away_name):
 
 
 def get_match_espn(espn_id):
-    """Match detail for a past-edition match (ESPN event id): score, events, venue, weather, stats."""
+    """Match detail for a past-edition match (ESPN event id): score, events, venue, weather, stats.
+    Memoized per request — _card_suspensions/_player_ratings call this once per finished match."""
+    return _req_memo(("match_espn", str(espn_id)), lambda: _get_match_espn(espn_id))
+
+
+def _get_match_espn(espn_id):
     saved, _ = _read_cache(f"match-final-{espn_id}", 10 ** 9)
     if saved is not None:
         subs_old = bool(saved.get("subs")) and any("reason" not in x for arr in saved["subs"].values() for x in arr)
@@ -2181,15 +2227,27 @@ def _model_pick_py(pr):
     dfn = lambda t: eg(t.get("ga", 0) or 0, t["dfn"] if t.get("dfn") is not None else K["avg"], t.get("played", 0) or 0)
     gk = lambda t: max(.82, min(1.18, 1 - (t["gk"] - .35) * .5)) if t.get("gk") is not None else 1
     tilt = max(-K["tiltCap"], min(K["tiltCap"], dr / K["tiltScale"]))
-    lh = max(.2, ((atk(h) + dfn(a)) / 2) * (1 + tilt) * gk(a))
-    la = max(.2, ((atk(a) + dfn(h)) / 2) * (1 - tilt) * gk(h))
-    best, sH, sA = -1, 1, 1
+    wx = pr.get("weather") or {}                 # heat/humidity/wind dampen goals (match computePrediction)
+    damp = 1.0
+    if wx.get("temp") is not None and wx["temp"] >= 30: damp -= 0.08
+    if wx.get("humidity") is not None and wx["humidity"] >= 75: damp -= 0.06
+    if wx.get("wind") is not None and wx["wind"] >= 30: damp -= 0.06
+    damp = max(0.8, damp)
+    lh = max(.2, ((atk(h) + dfn(a)) / 2) * (1 + tilt) * gk(a) * damp)
+    la = max(.2, ((atk(a) + dfn(h)) / 2) * (1 - tilt) * gk(h) * damp)
+    oc = "home" if home >= draw and home >= away else "away" if away >= draw else "draw"
+    # The shown scoreline must agree with the W/D/L pick: an unconstrained Poisson mode can be a
+    # draw (1-1) even when a side is favored, which looked like a wrong pick on the Accuracy tab.
+    # Pick the most likely scoreline consistent with the predicted outcome.
+    cons = (lambda i, j: i > j) if oc == "home" else (lambda i, j: j > i) if oc == "away" else (lambda i, j: i == j)
+    best = -1; sH, sA = (1, 0) if oc == "home" else (0, 1) if oc == "away" else (1, 1)
     for i in range(7):
         for j in range(7):
+            if not cons(i, j):
+                continue
             p2 = (math.exp(-lh) * lh ** i / math.factorial(i)) * (math.exp(-la) * la ** j / math.factorial(j))
             if p2 > best + 1e-9 or (p2 > best - 1e-9 and i + j > sH + sA):
                 best = max(best, p2); sH, sA = i, j
-    oc = "home" if home >= draw and home >= away else "away" if away >= draw else "draw"
     return {"winner": oc, "scoreHome": sH, "scoreAway": sA}
 
 
@@ -2265,8 +2323,14 @@ def compute_accuracy():
             if exact:
                 t["exact"] += 1
 
-    def res_of(sh, sa):   # outcome implied by the SHOWN scoreline (so colors match the number)
+    def res_of(sh, sa):   # outcome implied by a scoreline
         return "home" if sh > sa else "away" if sa > sh else "draw"
+
+    def pick_outcome(p):  # a predictor's W/D/L call: its STATED winner, else inferred from its score.
+        # The model/AI give an explicit winner; a Poisson-mode scoreline alone can read as a draw
+        # even when a side is favored, so the stated winner is the real pick to grade.
+        w = p.get("winner")
+        return w if w in ("home", "away", "draw") else res_of(p.get("scoreHome"), p.get("scoreAway"))
 
     for m in allm:
         sc = m.get("score") or {}
@@ -2293,7 +2357,7 @@ def compute_accuracy():
             row = {"home": hn, "away": an, "actual": f"{ah}-{aa}", "ao": ao}
             mp = _model_pick_cached(mid)
             if mp:
-                ok = res_of(mp["scoreHome"], mp["scoreAway"]) == ao
+                ok = pick_outcome(mp) == ao
                 ex = mp["scoreHome"] == ah and mp["scoreAway"] == aa
                 tally(g, "model", ok, ex)
                 row["model"] = f'{mp["scoreHome"]}-{mp["scoreAway"]}'; row["model_ok"] = ok; row["model_ex"] = ex
@@ -2307,7 +2371,7 @@ def compute_accuracy():
             for pv in ("groq", "openai"):
                 r = _ai_pick_cached(mid, pv)
                 if r and r.get("available"):
-                    ok = res_of(r.get("scoreHome"), r.get("scoreAway")) == ao
+                    ok = pick_outcome(r) == ao
                     ex = r.get("scoreHome") == ah and r.get("scoreAway") == aa
                     tally(g, pv, ok, ex)
                     row[pv] = f'{r.get("scoreHome")}-{r.get("scoreAway")}'; row[pv + "_ok"] = ok; row[pv + "_ex"] = ex
@@ -2383,6 +2447,7 @@ def _accuracy_warm_worker():
     (warms the per-match model-pick cache + the 5-min accuracy cache)."""
     time.sleep(12)
     while True:
+        _req_memo_clear()                           # long-lived thread: fresh memo each cycle
         try:
             acc = compute_accuracy()
             if acc.get("aiRemaining", 0) > 0 or acc.get("warmPending", 0) > 0:
@@ -2477,22 +2542,31 @@ def _tune_samples():
     return samples
 
 
-def _score_params(samples, P):
+def _scoreline(eh, ea, host, fh, fa, P):
+    """Pre-kickoff expected goals (lh, la) and the modal scoreline (pH, pA) for the
+    Elo + home + form subset of the runtime model (computePrediction in worldcup.html).
+    The tuner scores params with THIS, then they are served by the JS runtime, so the two
+    must stay in lockstep — test_model_consistency.py asserts they agree."""
     A, TS, TC, K = P["avg"], P["tiltScale"], P["tiltCap"], P["formK"]
+    dr = 0.75 * (eh - ea) + 30 + (60 if host else 0)   # mirrors teamRating (elo w=6, home w=3) + host
+    tilt = max(-TC, min(TC, dr / TS))
+    atkh = (fh["gf"] + A * K) / (fh["p"] + K); dfnh = (fh["ga"] + A * K) / (fh["p"] + K)
+    atka = (fa["gf"] + A * K) / (fa["p"] + K); dfna = (fa["ga"] + A * K) / (fa["p"] + K)
+    lh = max(.2, ((atkh + dfna) / 2) * (1 + tilt)); la = max(.2, ((atka + dfnh) / 2) * (1 - tilt))
+    best = -1; pH = pA = 1
+    for i in range(7):
+        pi = math.exp(-lh) * lh ** i / math.factorial(i)
+        for j in range(7):
+            pr = pi * (math.exp(-la) * la ** j / math.factorial(j))
+            if pr > best + 1e-9 or (pr > best - 1e-9 and i + j > pH + pA):
+                best = pr if pr > best else best; pH, pA = i, j
+    return lh, la, pH, pA
+
+
+def _score_params(samples, P):
     oh = ex = 0; mae = 0.0; n = len(samples) or 1
     for eh, ea, fh, fa, host, sh, sa in samples:
-        dr = 0.75 * (eh - ea) + 30 + (60 if host else 0)   # mirrors teamRating (elo w=6, home w=3)
-        tilt = max(-TC, min(TC, dr / TS))
-        atkh = (fh["gf"] + A * K) / (fh["p"] + K); dfnh = (fh["ga"] + A * K) / (fh["p"] + K)
-        atka = (fa["gf"] + A * K) / (fa["p"] + K); dfna = (fa["ga"] + A * K) / (fa["p"] + K)
-        lh = max(.2, ((atkh + dfna) / 2) * (1 + tilt)); la = max(.2, ((atka + dfnh) / 2) * (1 - tilt))
-        best = -1; pH = pA = 1
-        for i in range(7):
-            pi = math.exp(-lh) * lh ** i / math.factorial(i)
-            for j in range(7):
-                pr = pi * (math.exp(-la) * la ** j / math.factorial(j))
-                if pr > best + 1e-9 or (pr > best - 1e-9 and i + j > pH + pA):
-                    best = pr if pr > best else best; pH, pA = i, j
+        _, _, pH, pA = _scoreline(eh, ea, host, fh, fa, P)
         po = "home" if pH > pA else "away" if pA > pH else "draw"
         ao = "home" if sh > sa else "away" if sa > sh else "draw"
         oh += po == ao; ex += pH == sh and pA == sa; mae += abs(pH - sh) + abs(pA - sa)
@@ -2963,6 +3037,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        _req_memo_clear()   # fresh per-request memo (this thread may serve keep-alive requests)
         path = urlparse(self.path).path
         if path in ("/", "/index.html", "/worldcup.html"):
             return self._file(HTML, "text/html; charset=utf-8")
@@ -3110,6 +3185,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        _req_memo_clear()   # fresh per-request memo
         path = urlparse(self.path).path
         if path == "/api/grade-ai":
             started = grade_ai_bg()

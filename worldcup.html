@@ -1340,7 +1340,7 @@ function setTz(tz){
 }
 
 async function loadStandings(){
-  document.getElementById("main").innerHTML = `<div class="empty"><div class="big">▦</div>${tr("standingsLoading")}</div>`;
+  document.getElementById("main").innerHTML = `<div class="empty"><img class="ld-logo-big" src="${edLogo()}">${tr("standingsLoading")}</div>`;
   const url = state.editionCurrent!==false ? "/api/standings" : "/api/standings?year="+state.edition;
   const s = await fetch(url).then(r=>r.json());
   state.groups = s.groups; if (s.source) setSrc(s.source); render();
