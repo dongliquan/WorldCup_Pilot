@@ -779,10 +779,11 @@ _advtrend = set()
 
 
 def advancement_trend(N=3000):
-    """Day-by-day R32 advancement story for the current edition: per-team advancement
-    probability at each calendar checkpoint (results so far fixed, the rest Monte-Carlo'd)
-    plus, for every third-placed team, a daily 'wildcard bingo' vs the other groups' 3rd
-    places. Heavy → cached by the finished-results signature (recomputed only on a new result)."""
+    """R32 advancement story for the current edition, stepped PER ROUND-3 MATCH (calendar dates
+    mix groups): baseline = end of round 2, then each round-3 match applied in kickoff order with
+    the rest Monte-Carlo'd. Per checkpoint: every team's advancement probability + each
+    third-placed team's wildcard bingo vs the other groups' 3rd places. Cached by the
+    finished-results signature (recomputed only on a new result)."""
     sig = _finished_signature()
     cached, _ = _read_cache("advtrend", 10 ** 9)
     if cached is not None and cached.get("sig") == sig:
@@ -800,7 +801,7 @@ def advancement_trend(N=3000):
         groups.setdefault(L, []).append(nm)
     GL = sorted(groups)
     if not team2L:
-        return {"checkpoints": [], "labels": [], "teams": [], "boards": {}, "order": [],
+        return {"labels": [], "marks": [], "teams": [], "boards": {}, "order": [],
                 "groupThirds": [], "groupsList": GL}
     cards = {nm: 0 for nm in team2L}
     gs = []
@@ -811,31 +812,24 @@ def advancement_trend(N=3000):
         if h not in team2L or a not in team2L:
             continue
         sc = m.get("score") or {}
-        gs.append({"date": (m.get("utcDate") or "")[:10], "L": team2L[h], "h": h, "a": a,
+        gs.append({"utc": m.get("utcDate") or "", "L": team2L[h], "h": h, "a": a,
                    "hs": sc.get("home"), "as": sc.get("away"),
                    "fin": m.get("status") == "FINISHED" and sc.get("home") is not None})
-    dates = sorted({r["date"] for r in gs if r["fin"]})
-    cps = [None] + dates
-    labels = ["D-0"] + [d[5:] for d in dates]
-
-    def day_state(cut):
-        base = {nm: {"pts": 0, "gf": 0, "ga": 0, "p": 0} for nm in team2L}
-        fixed, rem = {L: [] for L in groups}, []
-        for r in gs:
-            played = r["fin"] and r["hs"] is not None and cut is not None and r["date"] <= cut
-            if played:
-                h, a, hs, asc = r["h"], r["a"], r["hs"], r["as"]
-                base[h]["gf"] += hs; base[h]["ga"] += asc; base[h]["p"] += 1
-                base[a]["gf"] += asc; base[a]["ga"] += hs; base[a]["p"] += 1
-                base[h]["pts"] += 3 if hs > asc else 1 if hs == asc else 0
-                base[a]["pts"] += 3 if asc > hs else 1 if asc == hs else 0
-                fixed[r["L"]].append((h, a, hs, asc))
-            else:
-                rem.append((r["h"], r["a"], r["L"]))
-        orders = {L: _rank_group_2026(names, {n: base[n]["pts"] for n in names},
-                  {n: base[n]["gf"] for n in names}, {n: base[n]["ga"] for n in names}, cards, fixed.get(L, []))
-                  for L, names in groups.items()}
-        return base, orders, fixed, rem
+    # assign each group-stage match a matchday (1/2/3) by kickoff order within its group
+    bygrp = {}
+    for r in gs:
+        bygrp.setdefault(r["L"], []).append(r)
+    for arr in bygrp.values():
+        arr.sort(key=lambda r: r["utc"])
+        for i, r in enumerate(arr):
+            r["md"] = i // 2 + 1
+    # Round-3 view: x-axis is PER MATCH (calendar dates mix groups). Baseline = end of round 2,
+    # then step through each round-3 match in kickoff order; the rest of round 3 is simulated.
+    base_apply = [r for r in gs if r.get("md", 9) <= 2 and r["fin"] and r["hs"] is not None]
+    r3fin = sorted([r for r in gs if r.get("md") == 3 and r["fin"] and r["hs"] is not None], key=lambda r: r["utc"])
+    always_rem = [r for r in gs if not (r["fin"] and r["hs"] is not None)]
+    labels = ["2R"] + [str(i + 1) for i in range(len(r3fin))]
+    marks = [None] + [{"h": r["h"], "a": r["a"], "hs": r["hs"], "as": r["as"], "L": r["L"]} for r in r3fin]
 
     def pois(lam):
         lam = min(lam, 8.0); cut = math.exp(-lam); k, p = 0, 1.0
@@ -846,7 +840,23 @@ def advancement_trend(N=3000):
     tkey = lambda b, n: (b[n]["pts"], b[n]["gf"] - b[n]["ga"], b[n]["gf"])
     AVG, KK = 1.3, 2.0
 
-    states = [day_state(c) for c in cps]
+    def state_after(k):                          # results through round-3 match #k applied; rest simulated
+        base = {nm: {"pts": 0, "gf": 0, "ga": 0, "p": 0} for nm in team2L}
+        fixed = {L: [] for L in groups}
+        for r in base_apply + r3fin[:k]:
+            h, a, hs, asc = r["h"], r["a"], r["hs"], r["as"]
+            base[h]["gf"] += hs; base[h]["ga"] += asc; base[h]["p"] += 1
+            base[a]["gf"] += asc; base[a]["ga"] += hs; base[a]["p"] += 1
+            base[h]["pts"] += 3 if hs > asc else 1 if hs == asc else 0
+            base[a]["pts"] += 3 if asc > hs else 1 if asc == hs else 0
+            fixed[r["L"]].append((h, a, hs, asc))
+        rem = [(r["h"], r["a"], r["L"]) for r in (r3fin[k:] + always_rem)]
+        orders = {L: _rank_group_2026(names, {n: base[n]["pts"] for n in names},
+                  {n: base[n]["gf"] for n in names}, {n: base[n]["ga"] for n in names}, cards, fixed.get(L, []))
+                  for L, names in groups.items()}
+        return base, orders, fixed, rem
+
+    states = [state_after(k) for k in range(len(r3fin) + 1)]
     trend = {nm: [] for nm in team2L}
     for base, orders, fixed, rem in states:
         rate = {nm: {"atk": (b["gf"] + AVG * KK) / (b["p"] + KK), "dfn": (b["ga"] + AVG * KK) / (b["p"] + KK)}
@@ -929,7 +939,7 @@ def advancement_trend(N=3000):
 
     teams = [{"name": nm, "group": team2L[nm], "trend": trend[nm], "third": nm in boards}
              for nm in team2L]
-    data = {"labels": labels, "groupsList": GL, "teams": teams, "order": finals3,
+    data = {"labels": labels, "marks": marks, "groupsList": GL, "teams": teams, "order": finals3,
             "groupThirds": groupThirds, "boards": boards}
     _write_cache("advtrend", {"sig": sig, "data": data})
     return data
