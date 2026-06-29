@@ -997,6 +997,8 @@
     border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
   .advt-tbl td { padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
   .advt-row { cursor: pointer; }
+  .advt-row.zone td { background: rgba(52,199,89,.09); }   /* positions 1–8 = advancing zone */
+  .advt-row.zone.cut8 td { box-shadow: inset 0 -2px 0 rgba(52,199,89,.5); }
   .advt-row:hover td { background: var(--glass-2); }
   .advt-row.sel td { background: var(--glass-2); }
   .advt-row.sel td.pos { box-shadow: inset 3px 0 0 var(--gold); }
@@ -2508,7 +2510,7 @@ function renderAdvTrend(){
       || y.line[0]-x.line[0] || y.line[1]-x.line[1] || (x.n<y.n?-1:1));
     tbody.innerHTML = rows.map((rw,i)=>{
       const inZone = (rw.grpRank&&rw.grpRank<=2) || (rw.rank3 && rw.rank3[0]<=8);
-      return `<tr class="advt-row ${inZone?'adv':'out'}${rw.n===_advSel?' sel':''}" data-team="${encodeURIComponent(rw.n)}" title="${rw.n}">
+      return `<tr class="advt-row ${inZone?'adv':'out'}${i<8?' zone':''}${i===7?' cut8':''}${rw.n===_advSel?' sel':''}" data-team="${encodeURIComponent(rw.n)}" title="${rw.n}">
         <td class="pos">${i+1}</td>
         <td><span class="advt-gchip" style="${groupChipStyle(rw.g)}">${rw.g}</span></td>
         <td class="tnm">${flagImg(rw.n,"sm")}<span>${rw.n}</span></td>
