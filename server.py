@@ -481,11 +481,25 @@ def mock_team(team_id):
 
 
 # ---- data assembly ----------------------------------------------------------
+def _edition_done(season):
+    """True once every match of the edition is final — results never change again, so the
+    fixtures/standings can be served permanently from cache (no more live re-fetching)."""
+    cached, _ = _read_cache(f"espn-year-{season}", 10 ** 9)
+    if not cached:
+        return False
+    for ev in cached.get("events", []):
+        n = (((ev.get("status") or {}).get("type") or {}).get("name") or "")
+        if "FINAL" not in n and n != "STATUS_FULL_TIME":
+            return False
+    return True
+
+
 def get_matches():
-    """Current edition fixtures/scores — ESPN, short cache (live). No token, no mock."""
-    season = CONFIG.get("season")
-    ttl = int(CONFIG.get("cache_ttl_seconds", 60))
-    return get_matches_espn(str(season), ttl=ttl)
+    """Current edition fixtures/scores — ESPN, short cache (live). No token, no mock.
+    Once the whole edition is finished, results are permanent → stop re-fetching."""
+    season = str(CONFIG.get("season"))
+    ttl = 10 ** 9 if _edition_done(season) else int(CONFIG.get("cache_ttl_seconds", 60))
+    return get_matches_espn(season, ttl=ttl)
 
 
 def _espn_status(s):
@@ -602,9 +616,9 @@ def save_edition(year):
 def get_standings():
     """Current edition group standings — ESPN, short cache (live). No token, no mock.
     Enriched with each team's yellow/red card totals for display."""
-    season = CONFIG.get("season")
-    ttl = int(CONFIG.get("cache_ttl_seconds", 60))
-    data = get_standings_espn(str(season), ttl=ttl)
+    season = str(CONFIG.get("season"))
+    ttl = 10 ** 9 if _edition_done(season) else int(CONFIG.get("cache_ttl_seconds", 60))
+    data = get_standings_espn(season, ttl=ttl)
     try:
         tot = _team_card_totals(season)
         for g in data.get("groups", []):
@@ -683,7 +697,7 @@ def third_place_odds(N=4000):
              t3                         %    P(finish 3rd AND make the best-8)
       could3 — teams that can still finish 3rd in their group
     Recomputed only when a match finishes (cached by the finished-results signature)."""
-    sig = _finished_signature()                 # recompute only when a match has finished
+    sig = _group_stage_signature()              # group-stage only → stable through the knockouts
     cached, _ = _read_cache("advodds", 10 ** 9)
     if cached is not None and cached.get("sig") == sig:
         return cached.get("data")
@@ -784,7 +798,7 @@ def advancement_trend(N=3000):
     the rest Monte-Carlo'd. Per checkpoint: every team's advancement probability + each
     third-placed team's wildcard bingo vs the other groups' 3rd places. Cached by the
     finished-results signature (recomputed only on a new result)."""
-    sig = _finished_signature()
+    sig = _group_stage_signature()              # group-stage only → stable through the knockouts
     cached, _ = _read_cache("advtrend", 10 ** 9)
     if cached is not None and cached.get("sig") == sig:
         return cached.get("data")
@@ -2675,6 +2689,20 @@ def _finished_signature():
         return ""
 
 
+def _group_stage_signature():
+    """Fingerprint of just the GROUP-STAGE finished results. Group-stage-only views (3rd-place
+    odds, the advancement race) depend on nothing else, so keying their cache on this keeps them
+    stable through the knockouts instead of recomputing every time a knockout match finishes."""
+    try:
+        fin = sorted((str(m["id"]), (m.get("score") or {}).get("home"), (m.get("score") or {}).get("away"))
+                     for m in get_matches().get("matches", [])
+                     if m.get("stage") == "GROUP_STAGE" and m.get("status") == "FINISHED"
+                     and (m.get("score") or {}).get("home") is not None)
+        return hashlib.md5(json.dumps(fin).encode("utf-8")).hexdigest()
+    except Exception:
+        return ""
+
+
 def _read_tune_sig():
     try:
         with open(_tune_state_path(), encoding="utf-8") as f:
@@ -3406,23 +3434,26 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def seed_cache():
-    """Copy the committed AI picks (dist/cache/aipick-*.json) into the writable runtime cache
-    if missing. These are hand-entered/curated (ChatGPT cache-only; Groq needs a key) and can't be
-    re-fetched, so a fresh cache must inherit them or the Accuracy tab loses those columns."""
+    """Copy committed results from dist/cache into the writable runtime cache if missing:
+    AI picks (can't be re-fetched), model picks, and the finished-match computations
+    (accuracy, 3rd-place odds, the advancement race). Lets a fresh cache load them instantly
+    instead of recomputing — the Accuracy/Groups tabs would otherwise come up empty or stall."""
     src = os.path.join(ROOT, "dist", "cache")
     if not os.path.isdir(src) or os.path.abspath(src) == os.path.abspath(CACHE_DIR):
         return
     os.makedirs(CACHE_DIR, exist_ok=True)
     import shutil
+    keep = lambda fn: fn.endswith(".json") and (
+        fn.startswith(("aipick-", "modelpick-")) or fn in ("advtrend.json", "advodds.json", "accuracy.json"))
     n = 0
     for fn in os.listdir(src):
-        if fn.startswith("aipick-") and fn.endswith(".json") and not os.path.exists(os.path.join(CACHE_DIR, fn)):
+        if keep(fn) and not os.path.exists(os.path.join(CACHE_DIR, fn)):
             try:
                 shutil.copy2(os.path.join(src, fn), os.path.join(CACHE_DIR, fn)); n += 1
             except OSError:
                 pass
     if n:
-        print(f"[info] seeded {n} AI picks from dist/cache")
+        print(f"[info] seeded {n} cached results from dist/cache")
 
 
 def main():

@@ -11,19 +11,14 @@ config.json
 scratch_*.json
 korea_r32_telemetry.html
 
-# Keep the stable cached data in git (country/player/past-match info, ChatGPT picks,
-# tuned model) so a fresh clone works offline. Skip the big auto-refetchable blobs and
-# the volatile/derived files (patterns must stand alone — no inline comments):
+# Keep the stable cached data in git (country/player/past-match info, AI picks, tuned model,
+# and the finished-match computations: model picks, accuracy, 3rd-place odds, advancement race)
+# so a fresh clone / the .exe loads them instantly instead of recomputing. Only skip the big
+# auto-refetchable blobs (patterns must stand alone — no inline comments):
 #   img/         ~230MB photos (re-downloaded on demand)
 #   espn-sum-*   ~120MB raw summaries (re-fetched; finished ones also in match-final-*)
-#   accuracy     recomputed every few minutes
-#   modelpick-*  regenerated from the model on Refresh
 dist/cache/img/
 dist/cache/espn-sum-*.json
-dist/cache/accuracy.json
-dist/cache/modelpick-*.json
-dist/cache/advodds.json
-dist/cache/advtrend.json
 
 # source-run cache (python server.py) — root only, not dist/cache
 /cache/
