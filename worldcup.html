@@ -979,8 +979,8 @@
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
   /* layout: country selector | chart | bingo (left → right) */
-  .advt-deck3 { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; align-items: stretch; margin-top: 4px; }
-  @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 280px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
+  .advt-deck3 { display: grid; grid-template-columns: 364px minmax(0,1fr) 320px; gap: 14px; align-items: stretch; margin-top: 4px; }
+  @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 340px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
   .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
   .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
@@ -1004,6 +1004,7 @@
   .advt-row .tnm span { overflow-wrap: anywhere; }
   .advt-row .tpr { font-weight: 800; font-family: var(--mono); text-align: right; }
   .advt-row.adv .tpr { color: #34c759; } .advt-row.out .tpr { color: #ef4444; }
+  .advt-tbl .tnum { font-family: var(--mono); text-align: center; color: var(--dim); white-space: nowrap; }
   .advt-cell { cursor: pointer; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px;
     background: var(--glass); color: var(--text); position: relative; overflow: hidden; font-family: inherit;
     display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; column-gap: 8px; transition: border-color .15s; }
@@ -2444,11 +2445,13 @@ function renderAdvTrend(){
   const flagImg = (n,cls)=> `<img class="advt-flag${cls?' '+cls:''}" src="${crestOf(n)}" onerror="this.src='${flagFb}'" alt="">`;
 
   const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
-    const pct = Math.round(b.days[b.days.length-1].adv);
+    const last = b.days[b.days.length-1]; const pct = Math.round(last.adv); const pts = last.line[0], gd = last.line[1];
     return `<tr class="advt-row ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
       <td class="pos">#${r}</td>
       <td><span class="advt-gchip" style="${groupChipStyle(b.group)}">${b.group}</span></td>
       <td class="tnm">${flagImg(n,"sm")}<span>${n}</span></td>
+      <td class="tnum">${pts}</td>
+      <td class="tnum">${gd>=0?'+':''}${gd}</td>
       <td class="tpr">${pct}%</td></tr>`; }).join("");
 
   host.innerHTML = `
@@ -2457,7 +2460,7 @@ function renderAdvTrend(){
     <div class="advt-deck3">
       <div class="advt-sel-col">
         <div class="advt-tbl-wrap">
-        <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
+        <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:center">${tr("thPts")}</th><th style="text-align:center">${tr("thGD")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
         <tbody id="advtMeta">${meta}</tbody></table></div>
         <div class="advt-ctrl">
           <button class="advt-replay" id="advtReplay">↺ ${tr("advReplay")}</button>
