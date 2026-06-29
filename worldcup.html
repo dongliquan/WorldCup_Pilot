@@ -982,7 +982,8 @@
   .advt-deck3 { display: grid; grid-template-columns: 364px minmax(0,1fr) 320px; gap: 14px; align-items: start; margin-top: 4px; }
   @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 340px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
-  .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
+  .advt-sel-col { display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--glass); }
   .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
   .advt-ctrl { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
   .advt-replay { cursor: pointer; background: var(--glass); border: 1px solid var(--line-2); color: var(--dim);

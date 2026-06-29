@@ -3405,8 +3405,29 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(404, {"error": "not found"})
 
 
+def seed_cache():
+    """Copy the committed AI picks (dist/cache/aipick-*.json) into the writable runtime cache
+    if missing. These are hand-entered/curated (ChatGPT cache-only; Groq needs a key) and can't be
+    re-fetched, so a fresh cache must inherit them or the Accuracy tab loses those columns."""
+    src = os.path.join(ROOT, "dist", "cache")
+    if not os.path.isdir(src) or os.path.abspath(src) == os.path.abspath(CACHE_DIR):
+        return
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    import shutil
+    n = 0
+    for fn in os.listdir(src):
+        if fn.startswith("aipick-") and fn.endswith(".json") and not os.path.exists(os.path.join(CACHE_DIR, fn)):
+            try:
+                shutil.copy2(os.path.join(src, fn), os.path.join(CACHE_DIR, fn)); n += 1
+            except OSError:
+                pass
+    if n:
+        print(f"[info] seeded {n} AI picks from dist/cache")
+
+
 def main():
     os.makedirs(CACHE_DIR, exist_ok=True)
+    seed_cache()
     host, port = "127.0.0.1", 8770
     httpd = ThreadingHTTPServer((host, port), Handler)
     print(f"World Cup Pilot server on http://{host}:{port}  (token_set={token_ok()})")

@@ -172,6 +172,7 @@ server.ASSETS_DIR = os.path.join(app_root(), "assets")
 server.CONFIG_PATH = os.path.join(writable_root(), "config.json")
 server.CACHE_DIR = os.path.join(writable_root(), "cache")
 os.makedirs(server.CACHE_DIR, exist_ok=True)
+server.seed_cache()   # inherit committed AI picks (dist/cache) into the runtime cache if missing
 server.CONFIG = server.load_config()
 server.VENUES = server.load_venues()
 server.RANKING = server.load_ranking()
