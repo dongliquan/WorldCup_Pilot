@@ -385,7 +385,9 @@ def get_matches_espn(year, ttl=10 ** 9):
 
 
 def _get_matches_espn(year, ttl):
-    data = http_json(f"{ESPN_BASE}/scoreboard?dates={year}", f"espn-year-{year}", ttl=ttl)
+    # limit=300: ESPN's scoreboard defaults to 100 events → the 2026 WC has 104 (incl. SF/3rd/final),
+    # so without this the last 4 knockout matches get silently dropped.
+    data = http_json(f"{ESPN_BASE}/scoreboard?dates={year}&limit=300", f"espn-year-{year}", ttl=ttl)
     out = []
     for ev in (data or {}).get("events", []):
         comp = (ev.get("competitions") or [{}])[0]

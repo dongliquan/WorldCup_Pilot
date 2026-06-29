@@ -617,9 +617,11 @@
     scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
   .bracket::-webkit-scrollbar { height: 9px; }
   .bracket::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
-  .br-col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px;
-    min-width: 156px; flex: 1 1 0; }
+  .br-col { display: flex; flex-direction: column; min-width: 156px; flex: 1 1 0; }
+  .br-col-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    justify-content: space-around; gap: 8px; }   /* matches spread evenly → round N centers on its pair */
   .br-center { min-width: 190px; justify-content: center; gap: 12px; }
+  .br-match { min-height: 58px; box-sizing: border-box; }   /* uniform height so feeders line up cleanly */
   .br-rnd { font-size: 11px; font-weight: 800; color: var(--gold); text-align: center;
     letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
   .br-rnd.third { margin-top: 18px; color: var(--mute); }
@@ -1578,7 +1580,7 @@ function renderBracket(){
   if (!r32.length && !r16.length && !fin){ main.innerHTML = `<div class="empty"><div class="big">🏆</div>${tr("bracketPending")}</div>`; return; }
   const half = a => { const n=Math.ceil(a.length/2); return [a.slice(0,n), a.slice(n)]; };
   const [r32L,r32R]=half(r32), [r16L,r16R]=half(r16), [qfL,qfR]=half(qf), [sfL,sfR]=half(sf);
-  const col = (title,ms) => ms.length ? `<div class="br-col"><div class="br-rnd">${title}</div>${ms.map(brCard).join("")}</div>` : "";
+  const col = (title,ms) => ms.length ? `<div class="br-col"><div class="br-rnd">${title}</div><div class="br-col-body">${ms.map(brCard).join("")}</div></div>` : "";
   main.innerHTML = `<div class="bracket">
     ${col(tr("st32"),r32L)}${col(tr("st16"),r16L)}${col(tr("stQF"),qfL)}${col(tr("stSF"),sfL)}
     <div class="br-col br-center">
