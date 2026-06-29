@@ -979,7 +979,7 @@
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
   /* layout: country selector | chart | bingo (left → right) */
-  .advt-deck3 { display: grid; grid-template-columns: 364px minmax(0,1fr) 320px; gap: 14px; align-items: stretch; margin-top: 4px; }
+  .advt-deck3 { display: grid; grid-template-columns: 364px minmax(0,1fr) 320px; gap: 14px; align-items: start; margin-top: 4px; }
   @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 340px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
   .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
@@ -1023,7 +1023,6 @@
   .advt-flag.sm { width: 22px; height: 15px; }
   .advt-metanote { font-size: 12px; color: var(--mute); margin: 12px 0 0; }
   .advt-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--glass); display: flex; flex-direction: column; }
-  .advt-deck3 > .advt-card .advt-bigrow { margin-top: auto; }
   .advt-kick { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px;
     color: var(--mute); margin-bottom: 8px; font-weight: 700; gap: 8px; }
   .advt-kick #advtSel, .advt-kick #advtBingoT { color: var(--text); }
@@ -2444,16 +2443,6 @@ function renderAdvTrend(){
   const tlaOf = n => tlaByName[n] || n;
   const flagImg = (n,cls)=> `<img class="advt-flag${cls?' '+cls:''}" src="${crestOf(n)}" onerror="this.src='${flagFb}'" alt="">`;
 
-  const meta = D.order.map((n,i)=>{ const b = D.boards[n]; const r = b.finalRank3 ? b.finalRank3[0] : i+1;
-    const last = b.days[b.days.length-1]; const pct = Math.round(last.adv); const pts = last.line[0], gd = last.line[1];
-    return `<tr class="advt-row ${b.advanced?'adv':'out'}" data-team="${encodeURIComponent(n)}" title="${n}">
-      <td class="pos">#${r}</td>
-      <td><span class="advt-gchip" style="${groupChipStyle(b.group)}">${b.group}</span></td>
-      <td class="tnm">${flagImg(n,"sm")}<span>${n}</span></td>
-      <td class="tnum">${pts}</td>
-      <td class="tnum">${gd>=0?'+':''}${gd}</td>
-      <td class="tpr">${pct}%</td></tr>`; }).join("");
-
   host.innerHTML = `
     <div class="advt-head">🔮 ${tr("advRace")}</div>
     <div class="advt-sub">${tr("advRaceSub")}</div>
@@ -2461,7 +2450,7 @@ function renderAdvTrend(){
       <div class="advt-sel-col">
         <div class="advt-tbl-wrap">
         <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:center">${tr("thPts")}</th><th style="text-align:center">${tr("thGD")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
-        <tbody id="advtMeta">${meta}</tbody></table></div>
+        <tbody id="advtMeta"></tbody></table></div>
         <div class="advt-ctrl">
           <button class="advt-replay" id="advtReplay">↺ ${tr("advReplay")}</button>
           <div class="advt-prog"><div class="advt-prog-fill" id="advtProg"></div></div>
@@ -2478,23 +2467,22 @@ function renderAdvTrend(){
     </div>
     <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>`;
 
-  const W=1000,H=380,m={l:38,r:84,t:14,b:34}, xw=W-m.l-m.r, yh=H-m.t-m.b;
+  const W=1000,H=380,m={l:32,r:16,t:14,b:34}, xw=W-m.l-m.r, yh=H-m.t-m.b;
   const Y=v=> m.t + (1-v/100)*yh;
-  let vis=[], M=1;                                   // vis = checkpoints where the SELECTED team's odds moved
+  let vis=[], M=1;                                   // vis = baseline + each group's round-3 resolution (12 steps)
   const X=p=> M<=1 ? m.l + xw/2 : m.l + p*xw/(M-1);
   const pathOf=t=>{ let s=""; vis.forEach((abs,p)=>{ s+=(p?"L":"M")+X(p).toFixed(1)+" "+Y(t[abs]).toFixed(1)+" "; }); return s; };
   const chart = host.querySelector("#advtChart");
-  function computeVis(team){                         // baseline + every round-3 match that moved this team's % (≥1.5)
-    const t=trendByName[team], out=[0]; let last=t[0];
-    for(let k=1;k<N;k++){ if(Math.abs(t[k]-last) >= 1.5){ out.push(k); last=t[k]; } }
-    if(out[out.length-1]!==N-1) out.push(N-1);
-    return out;
+  function computeVis(){                              // each group's 3rd place is set when its LAST round-3 match ends →
+    const lastByG={};                                // 12 group-resolution checkpoints (+ baseline). Same for every team.
+    (D.marks||[]).forEach((mk,idx)=>{ if(mk) lastByG[mk.L]=idx; });
+    return [0, ...Object.values(lastByG).sort((a,b)=>a-b)];
   }
   function drawChart(){
     let g="";
     for(let p=0;p<=100;p+=25){ g+=`<line x1="${m.l}" y1="${Y(p)}" x2="${W-m.r}" y2="${Y(p)}" stroke="#7f8893" stroke-opacity=".18"/>`;
       g+=`<text x="${m.l-6}" y="${Y(p)+4}" fill="#8a93a0" font-size="11" text-anchor="end">${p}</text>`; }
-    vis.forEach((abs,p)=>{ if(M<=8 || p===0 || p===M-1 || p%2===0) g+=`<text x="${X(p)}" y="${H-12}" fill="#8a93a0" font-size="10" text-anchor="middle">${D.labels[abs]}</text>`; });
+    vis.forEach((abs,p)=>{ g+=`<text x="${X(p)}" y="${H-12}" fill="#8a93a0" font-size="10" text-anchor="middle">${p===0?"2R":p}</text>`; });
     let faint=""; D.teams.filter(t=>!t.third).forEach(t=>{ faint+=`<path d="${pathOf(t.trend)}" fill="none" stroke="#7f8893" stroke-opacity=".28" stroke-width="1.2"/>`; });
     chart.innerHTML = g + faint + `<g id="advtHl"></g>
       <line id="advtCursor" y1="${m.t}" y2="${H-m.b}" stroke="#9aa3ad" stroke-opacity=".6" stroke-dasharray="3 4"/>
@@ -2509,6 +2497,23 @@ function renderAdvTrend(){
   const bingo = host.querySelector("#advtBingo");
   bingo.innerHTML = GL.map(L=>`<div class="advt-bc" data-g="${L}"><span class="g" style="${groupChipStyle(L)}">${L}</span><span class="m"></span><span class="n"></span><span class="l"></span></div>`).join("");
   const bcells = {}; bingo.querySelectorAll(".advt-bc").forEach(el=> bcells[el.dataset.g]=el);
+  const tbody = host.querySelector("#advtMeta");
+
+  function renderTable(abs){                          // live leaderboard at this checkpoint — re-sorted by current R32%
+    const rows = D.order.map(n=>{ const d=D.boards[n].days[abs];
+      return {n, g:D.boards[n].group, adv:d.adv, rank3:d.rank3, grpRank:d.grpRank, line:d.line}; });
+    rows.sort((x,y)=> y.adv-x.adv || ((x.rank3?x.rank3[0]:99)-(y.rank3?y.rank3[0]:99))
+      || y.line[0]-x.line[0] || y.line[1]-x.line[1] || (x.n<y.n?-1:1));
+    tbody.innerHTML = rows.map((rw,i)=>{
+      const inZone = (rw.grpRank&&rw.grpRank<=2) || (rw.rank3 && rw.rank3[0]<=8);
+      return `<tr class="advt-row ${inZone?'adv':'out'}${rw.n===_advSel?' sel':''}" data-team="${encodeURIComponent(rw.n)}" title="${rw.n}">
+        <td class="pos">${i+1}</td>
+        <td><span class="advt-gchip" style="${groupChipStyle(rw.g)}">${rw.g}</span></td>
+        <td class="tnm">${flagImg(rw.n,"sm")}<span>${rw.n}</span></td>
+        <td class="tnum">${rw.line[0]}</td>
+        <td class="tnum">${rw.line[1]>=0?'+':''}${rw.line[1]}</td>
+        <td class="tpr">${Math.round(rw.adv)}%</td></tr>`; }).join("");
+  }
 
   function renderAdvDay(p){                           // p = visible position → abs checkpoint
     _advDay=p; const abs=vis[p], b=D.boards[_advSel], day=b.days[abs], sel=trendByName[_advSel];
@@ -2534,6 +2539,7 @@ function renderAdvTrend(){
       ln.textContent=`${c.pts}·${c.gd>=0?'+':''}${c.gd}·${c.gf}`; });
     host.querySelector("#advtFav").textContent=`${day.fav}/11`;
     host.querySelector("#advtProg").style.width = (M<=1 ? 100 : (p/(M-1)*100)) + "%";
+    renderTable(abs);                                // table re-sorts by current R32% each step
   }
   function playAnim(){
     if (_advTimer){ clearInterval(_advTimer); _advTimer=null; }
@@ -2542,15 +2548,14 @@ function renderAdvTrend(){
     _advTimer=setInterval(()=>{ p++; if(p>=M){ clearInterval(_advTimer); _advTimer=null; return; } renderAdvDay(p); }, 600);
   }
   function selectAdv(n){ _advSel=n; const b=D.boards[n];
-    host.querySelectorAll(".advt-row").forEach(el=> el.classList.toggle("sel", decodeURIComponent(el.dataset.team)===n));
     host.querySelector("#advtSel").innerHTML = `${flagImg(n,"sm")}${n} (${groupLabel(b.group)})`;
     host.querySelector("#advtBingoT").textContent = `${n} · ${tr("advVsThirds")}`;
-    vis = computeVis(n); M = vis.length;
-    drawChart(); drawHl(); playAnim();              // clicking a team replays its run
+    drawHl(); playAnim();                            // table highlight + rows handled by renderTable
   }
 
-  host.querySelectorAll(".advt-row").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
+  tbody.addEventListener("click", e=>{ const row=e.target.closest(".advt-row"); if(row) selectAdv(decodeURIComponent(row.dataset.team)); });
   host.querySelector("#advtReplay").addEventListener("click", playAnim);   // replay current team's run
+  vis = computeVis(); M = vis.length; drawChart();  // 12 group-resolution checkpoints (+ baseline), same for all teams
   selectAdv(_advSel);                               // initial team auto-plays
 }
 
