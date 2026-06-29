@@ -1035,7 +1035,7 @@
   .advt-day { color: var(--gold); font-family: var(--mono); }
   .advt-chart { width: 100%; height: auto; display: block; }
   .advt-dot { stroke: var(--bg); stroke-width: 2; }
-  .advt-bigrow { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; justify-content: flex-end; }
+  .advt-bigrow { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; justify-content: space-between; }
   .advt-big { font-weight: 800; font-size: 40px; line-height: 1; font-family: var(--mono); }
   .advt-big small { font-size: .34em; color: var(--mute); }
   .advt-stat { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border: 1px solid currentColor; border-radius: 8px; }
@@ -2465,7 +2465,7 @@ function renderAdvTrend(){
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
         <svg class="advt-chart" id="advtChart" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${tr("advRace")}"></svg>
-        <div class="advt-bigrow"><div class="advt-big" id="advtBig">––<small>%</small></div><div class="advt-stat" id="advtStat">–</div></div>
+        <div class="advt-bigrow"><div class="advt-stat" id="advtStat">–</div><div class="advt-big" id="advtBig">––<small>%</small></div></div>
       </div>
       <div class="advt-card advt-bingo-card">
         <div class="advt-kick"><span id="advtBingoT">${tr("advVsThirds")}</span><span class="advt-fav" id="advtFav">0/11</span></div>
