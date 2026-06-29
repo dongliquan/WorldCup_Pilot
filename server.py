@@ -775,6 +775,166 @@ def third_place_odds(N=4000):
     return out
 
 
+_advtrend = set()
+
+
+def advancement_trend(N=3000):
+    """Day-by-day R32 advancement story for the current edition: per-team advancement
+    probability at each calendar checkpoint (results so far fixed, the rest Monte-Carlo'd)
+    plus, for every third-placed team, a daily 'wildcard bingo' vs the other groups' 3rd
+    places. Heavy → cached by the finished-results signature (recomputed only on a new result)."""
+    sig = _finished_signature()
+    cached, _ = _read_cache("advtrend", 10 ** 9)
+    if cached is not None and cached.get("sig") == sig:
+        return cached.get("data")
+    season = str(CONFIG.get("season"))
+    team2L = {}
+    for g in (get_standings_espn(season) or {}).get("groups", []):
+        L = re.sub(r"(?i)^group\s*", "", g.get("group") or "").strip()
+        for r in g.get("table", []):
+            nm = (r.get("team") or {}).get("name")
+            if nm:
+                team2L[nm] = L
+    groups = {}
+    for nm, L in team2L.items():
+        groups.setdefault(L, []).append(nm)
+    GL = sorted(groups)
+    if not team2L:
+        return {"checkpoints": [], "labels": [], "teams": [], "boards": {}, "order": [],
+                "groupThirds": [], "groupsList": GL}
+    cards = {nm: 0 for nm in team2L}
+    gs = []
+    for m in get_matches().get("matches", []):
+        if m.get("stage") != "GROUP_STAGE":
+            continue
+        h = (m.get("home") or {}).get("name"); a = (m.get("away") or {}).get("name")
+        if h not in team2L or a not in team2L:
+            continue
+        sc = m.get("score") or {}
+        gs.append({"date": (m.get("utcDate") or "")[:10], "L": team2L[h], "h": h, "a": a,
+                   "hs": sc.get("home"), "as": sc.get("away"),
+                   "fin": m.get("status") == "FINISHED" and sc.get("home") is not None})
+    dates = sorted({r["date"] for r in gs if r["fin"]})
+    cps = [None] + dates
+    labels = ["D-0"] + [d[5:] for d in dates]
+
+    def day_state(cut):
+        base = {nm: {"pts": 0, "gf": 0, "ga": 0, "p": 0} for nm in team2L}
+        fixed, rem = {L: [] for L in groups}, []
+        for r in gs:
+            played = r["fin"] and r["hs"] is not None and cut is not None and r["date"] <= cut
+            if played:
+                h, a, hs, asc = r["h"], r["a"], r["hs"], r["as"]
+                base[h]["gf"] += hs; base[h]["ga"] += asc; base[h]["p"] += 1
+                base[a]["gf"] += asc; base[a]["ga"] += hs; base[a]["p"] += 1
+                base[h]["pts"] += 3 if hs > asc else 1 if hs == asc else 0
+                base[a]["pts"] += 3 if asc > hs else 1 if asc == hs else 0
+                fixed[r["L"]].append((h, a, hs, asc))
+            else:
+                rem.append((r["h"], r["a"], r["L"]))
+        orders = {L: _rank_group_2026(names, {n: base[n]["pts"] for n in names},
+                  {n: base[n]["gf"] for n in names}, {n: base[n]["ga"] for n in names}, cards, fixed.get(L, []))
+                  for L, names in groups.items()}
+        return base, orders, fixed, rem
+
+    def pois(lam):
+        lam = min(lam, 8.0); cut = math.exp(-lam); k, p = 0, 1.0
+        while True:
+            k += 1; p *= random.random()
+            if p <= cut:
+                return k - 1
+    tkey = lambda b, n: (b[n]["pts"], b[n]["gf"] - b[n]["ga"], b[n]["gf"])
+    AVG, KK = 1.3, 2.0
+
+    states = [day_state(c) for c in cps]
+    trend = {nm: [] for nm in team2L}
+    for base, orders, fixed, rem in states:
+        rate = {nm: {"atk": (b["gf"] + AVG * KK) / (b["p"] + KK), "dfn": (b["ga"] + AVG * KK) / (b["p"] + KK)}
+                for nm, b in base.items()}
+        adv = {nm: 0 for nm in team2L}
+        for _ in range(N):
+            pts = {nm: base[nm]["pts"] for nm in team2L}
+            gf = {nm: base[nm]["gf"] for nm in team2L}; ga = {nm: base[nm]["ga"] for nm in team2L}
+            simres = {L: list(v) for L, v in fixed.items()}
+            for h, a, L in rem:
+                lh = max(.2, (rate[h]["atk"] + rate[a]["dfn"]) / 2 * 1.08)
+                la = max(.2, (rate[a]["atk"] + rate[h]["dfn"]) / 2 * 0.94)
+                gh, gaw = pois(lh), pois(la)
+                gf[h] += gh; ga[h] += gaw; gf[a] += gaw; ga[a] += gh
+                if gh > gaw:
+                    pts[h] += 3
+                elif gaw > gh:
+                    pts[a] += 3
+                else:
+                    pts[h] += 1; pts[a] += 1
+                simres.setdefault(L, []).append((h, a, gh, gaw))
+            adv_set, thirds = set(), []
+            for L, names in groups.items():
+                order = _rank_group_2026(names, pts, gf, ga, cards, simres.get(L, []))
+                if order:
+                    adv_set.add(order[0])
+                if len(order) > 1:
+                    adv_set.add(order[1])
+                if len(order) > 2:
+                    thirds.append(order[2])
+            thirds.sort(key=lambda n: (pts[n], gf[n] - ga[n], gf[n]), reverse=True)
+            for n in thirds[:8]:
+                adv_set.add(n)
+            for n in adv_set:
+                adv[n] += 1
+        for nm in team2L:
+            trend[nm].append(round(100 * adv[nm] / N, 1))
+
+    # shared per-day 3rd place of each group (so boards don't repeat it)
+    groupThirds = []
+    for base, orders, _f, _r in states:
+        row = {}
+        for L in GL:
+            od = orders[L]; third = od[2] if len(od) > 2 else None
+            t = base[third] if third else None
+            row[L] = {"team": third, "has": bool(third) and (t["p"] > 0 if t else False),
+                      "pts": t["pts"] if t else 0, "gd": (t["gf"] - t["ga"]) if t else 0, "gf": t["gf"] if t else 0}
+        groupThirds.append(row)
+
+    # focus = every team that finished 3rd in its group; sorted by final 3rd-place key
+    fbase, forders = states[-1][0], states[-1][1]
+    finals3 = [forders[L][2] for L in groups if len(forders[L]) > 2]
+    finals3.sort(key=lambda n: tkey(fbase, n), reverse=True)
+    advancers = set(finals3[:8])
+
+    boards = {}
+    for F in finals3:
+        gF = team2L[F]
+        days = []
+        for di, (base, orders, _f, _r) in enumerate(states):
+            bF = base[F]; lineF = [bF["pts"], bF["gf"] - bF["ga"], bF["gf"]]
+            favL = []
+            for L in GL:
+                if L == gF:
+                    continue
+                c = groupThirds[di][L]
+                if c["has"] and bF["p"] > 0 and tuple(lineF) > (c["pts"], c["gd"], c["gf"]):
+                    favL.append(L)
+            thirds_now = [orders[L][2] for L in groups if len(orders[L]) > 2 and base[orders[L][2]]["p"] > 0]
+            rank3 = None
+            if F in thirds_now:
+                ts = sorted(thirds_now, key=lambda n: tkey(base, n), reverse=True)
+                rank3 = [ts.index(F) + 1, len(ts)]
+            days.append({"adv": trend[F][di], "line": lineF, "favL": favL, "fav": len(favL),
+                         "rank3": rank3, "grpRank": orders[gF].index(F) + 1 if F in orders[gF] else None})
+        ft = boards
+        boards[F] = {"group": gF, "advanced": F in advancers,
+                     "finalRank3": days[-1]["rank3"], "peak": max(trend[F]),
+                     "days": days}
+
+    teams = [{"name": nm, "group": team2L[nm], "trend": trend[nm], "third": nm in boards}
+             for nm in team2L]
+    data = {"labels": labels, "groupsList": GL, "teams": teams, "order": finals3,
+            "groupThirds": groupThirds, "boards": boards}
+    _write_cache("advtrend", {"sig": sig, "data": data})
+    return data
+
+
 def get_team(team_id):
     raw, source = fd_get(f"/teams/{team_id}", f"team-{team_id}", ttl=10 ** 9)  # squad/coach static
     if raw is None and CONFIG.get("use_mock_when_unavailable", True):
@@ -2454,6 +2614,10 @@ def _accuracy_warm_worker():
                 grade_ai_bg()   # newly-finished matches → grade; upcoming → pre-warm groq picks
         except Exception as e:
             print(f"[warn] accuracy warm: {e}")
+        try:
+            advancement_trend()   # warm the day-by-day advancement trend (heavy; cached by signature)
+        except Exception as e:
+            print(f"[warn] advtrend warm: {e}")
         time.sleep(240)
 
 
@@ -3126,6 +3290,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[warn] advodds: {e}")
                 return self._json(200, {})
+        if path == "/api/advtrend":
+            try:
+                return self._json(200, advancement_trend())
+            except Exception as e:
+                print(f"[warn] advtrend: {e}")
+                return self._json(200, {"teams": [], "boards": {}, "order": [], "labels": []})
         if path == "/api/match":
             q = parse_qs(urlparse(self.path).query)
             mid = (q.get("id") or [""])[0]
