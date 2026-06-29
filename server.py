@@ -215,14 +215,6 @@ def rank_for(name, year=None):
     return _ranking_norm().get(_norm(name))
 
 
-def venue_for(match_id):
-    """(city, tz) for a football-data match id, or (None, None)."""
-    city = VENUES["matches"].get(str(match_id))
-    if not city:
-        return None, None
-    return city, VENUES["cities"].get(city)
-
-
 def token_ok():
     return bool(CONFIG.get("football_data_token"))
 
@@ -305,94 +297,6 @@ def _crest(team, area_flag=None):
     return team.get("crest") or area_flag or ""
 
 
-def normalize_matches(raw):
-    out = []
-    for m in raw.get("matches", []):
-        home, away = m.get("homeTeam", {}), m.get("awayTeam", {})
-        score = m.get("score", {}) or {}
-        ft = score.get("fullTime", {}) or {}
-        city, vtz = venue_for(m.get("id"))
-        out.append({
-            "id": m.get("id"),
-            "utcDate": m.get("utcDate"),
-            "status": m.get("status"),
-            "stage": m.get("stage"),
-            "group": m.get("group"),
-            "matchday": m.get("matchday"),
-            "venueCity": city,
-            "venueTz": vtz,
-            "home": {"id": home.get("id"), "name": home.get("name"),
-                     "tla": home.get("tla"), "crest": home.get("crest"),
-                     "rank": rank_for(home.get("name"))},
-            "away": {"id": away.get("id"), "name": away.get("name"),
-                     "tla": away.get("tla"), "crest": away.get("crest"),
-                     "rank": rank_for(away.get("name"))},
-            "score": {"home": ft.get("home"), "away": ft.get("away"),
-                      "winner": score.get("winner")},
-        })
-    out.sort(key=lambda x: (x["utcDate"] or ""))
-    return out
-
-
-def _stat_row(t):
-    team = t.get("team", {}) or {}
-    return {
-        "team": {"id": team.get("id"), "name": team.get("name"),
-                 "tla": team.get("tla"), "crest": team.get("crest"),
-                 "rank": rank_for(team.get("name"))},
-        "playedGames": t.get("playedGames") or 0,
-        "won": t.get("won") or 0, "draw": t.get("draw") or 0, "lost": t.get("lost") or 0,
-        "goalsFor": t.get("goalsFor") or 0, "goalsAgainst": t.get("goalsAgainst") or 0,
-        "goalDifference": t.get("goalDifference") or 0, "points": t.get("points") or 0,
-    }
-
-
-def normalize_standings(raw, matches=None):
-    """football-data returns one flat TOTAL table for the WC. Split it into the
-    A..L group cards using group membership derived from the group-stage matches."""
-    # team_id -> stat row (from the flat TOTAL table)
-    stats = {}
-    for s in raw.get("standings", []):
-        if s.get("type") not in (None, "TOTAL"):
-            continue
-        for t in s.get("table", []):
-            row = _stat_row(t)
-            if row["team"]["id"] is not None:
-                stats[row["team"]["id"]] = row
-
-    # group -> {team_id -> team meta}, from matches
-    membership = {}
-    for m in (matches or []):
-        grp = m.get("group")
-        if not grp or (m.get("stage") and m["stage"] != "GROUP_STAGE"):
-            continue
-        bucket = membership.setdefault(grp, {})
-        for side in ("home", "away"):
-            tm = m.get(side) or {}
-            if tm.get("id") is not None:
-                bucket[tm["id"]] = tm
-
-    if not membership:                      # no group info (e.g. mock/standings-only)
-        rows = sorted(stats.values(), key=lambda r: r["points"], reverse=True)
-        return [{"group": "STANDINGS", "table": rows}] if rows else []
-
-    groups = []
-    for grp in sorted(membership):
-        rows = []
-        for tid, meta in membership[grp].items():
-            r = stats.get(tid) or _stat_row({"team": meta})
-            r = dict(r)
-            r["team"] = {"id": tid, "name": meta.get("name"),
-                         "tla": meta.get("tla"), "crest": meta.get("crest"),
-                         "rank": rank_for(meta.get("name"))}
-            rows.append(r)
-        rows.sort(key=lambda r: (r["points"], r["goalDifference"], r["goalsFor"]), reverse=True)
-        for i, r in enumerate(rows):
-            r["position"] = i + 1
-        groups.append({"group": grp.replace("_", " ").title(), "table": rows})
-    return groups
-
-
 def normalize_team(raw):
     area = raw.get("area", {}) or {}
     squad = [{"id": p.get("id"), "name": p.get("name"),
@@ -417,50 +321,6 @@ def unique_dates(matches):
 # ---- mock data (used until a valid token / coverage is available) -----------
 def _flag(code):
     return f"https://flagcdn.com/w160/{code}.png"
-
-
-def mock_matches():
-    teams = {
-        "qat": {"id": 9001, "name": "Qatar", "tla": "QAT", "crest": _flag("qa")},
-        "ecu": {"id": 9002, "name": "Ecuador", "tla": "ECU", "crest": _flag("ec")},
-        "sen": {"id": 9003, "name": "Senegal", "tla": "SEN", "crest": _flag("sn")},
-        "ned": {"id": 9004, "name": "Netherlands", "tla": "NED", "crest": _flag("nl")},
-        "eng": {"id": 9005, "name": "England", "tla": "ENG", "crest": _flag("gb-eng")},
-        "irn": {"id": 9006, "name": "Iran", "tla": "IRN", "crest": _flag("ir")},
-        "usa": {"id": 9007, "name": "USA", "tla": "USA", "crest": _flag("us")},
-        "kor": {"id": 9008, "name": "Korea Republic", "tla": "KOR", "crest": _flag("kr")},
-    }
-    def mk(mid, date, h, a, group, hs=None, asc=None, status="TIMED"):
-        return {"id": mid, "utcDate": date, "status": status, "stage": "GROUP_STAGE",
-                "group": group, "matchday": 1, "home": teams[h], "away": teams[a],
-                "score": {"home": hs, "away": asc, "winner": None}}
-    return {"matches": [
-        mk(1, "2026-06-14T16:00:00Z", "qat", "ecu", "Group A", 0, 2, "FINISHED"),
-        mk(2, "2026-06-14T19:00:00Z", "sen", "ned", "Group A", 0, 2, "FINISHED"),
-        mk(3, "2026-06-14T22:00:00Z", "eng", "irn", "Group B", 6, 2, "FINISHED"),
-        mk(4, "2026-06-15T13:00:00Z", "usa", "kor", "Group B"),
-        mk(5, "2026-06-15T16:00:00Z", "qat", "sen", "Group A"),
-        mk(6, "2026-06-15T19:00:00Z", "ned", "ecu", "Group A"),
-        mk(7, "2026-06-16T19:00:00Z", "eng", "usa", "Group B"),
-        mk(8, "2026-06-16T22:00:00Z", "irn", "kor", "Group B"),
-    ]}
-
-
-def mock_standings():
-    def row(tid, name, code, p, w, d, l, gf, ga, pts):
-        return {"team": {"id": tid, "name": name, "tla": code.upper()[:3], "crest": _flag(code)},
-                "playedGames": p, "won": w, "draw": d, "lost": l,
-                "goalsFor": gf, "goalsAgainst": ga, "goalDifference": gf - ga, "points": pts}
-    # team ids align with mock_matches() so group bucketing finds their stats
-    return {"standings": [{"type": "TOTAL", "table": [
-        row(9004, "Netherlands", "nl", 1, 1, 0, 0, 2, 0, 3),
-        row(9002, "Ecuador", "ec", 1, 1, 0, 0, 2, 0, 3),
-        row(9003, "Senegal", "sn", 1, 0, 0, 1, 0, 2, 0),
-        row(9001, "Qatar", "qa", 1, 0, 0, 1, 0, 2, 0),
-        row(9005, "England", "gb-eng", 1, 1, 0, 0, 6, 2, 3),
-        row(9007, "USA", "us", 0, 0, 0, 0, 0, 0, 0),
-        row(9008, "Korea Republic", "kr", 0, 0, 0, 0, 0, 0, 0),
-        row(9006, "Iran", "ir", 1, 0, 0, 1, 2, 6, 0)]}]}
 
 
 def mock_team(team_id):
@@ -1295,34 +1155,6 @@ def espn_roster(name, season=None):
 TSDB = "https://www.thesportsdb.com/api/v1/json/3"
 
 
-def tsdb_team_id(name):
-    data = http_json(f"{TSDB}/searchteams.php?t={urllib.parse.quote(name)}",
-                     f"tsdb-t-{_norm(name)}", ttl=10 ** 9)
-    teams = (data or {}).get("teams") or []
-    want = _canon(name)
-    for t in teams:
-        if t.get("strSport") == "Soccer" and _canon(t.get("strTeam")) == want:
-            return t.get("idTeam")
-    for t in teams:
-        if t.get("strSport") == "Soccer":
-            return t.get("idTeam")
-    return None
-
-
-def tsdb_photos(name):
-    """{normalized player name: photo url} from TheSportsDB (free, no daily cap)."""
-    tid = tsdb_team_id(name)
-    if not tid:
-        return {}
-    data = http_json(f"{TSDB}/lookup_all_players.php?id={tid}", f"tsdb-p-{tid}", ttl=14 * 86400)
-    out = {}
-    for p in (data or {}).get("player") or []:
-        ph = p.get("strThumb") or p.get("strCutout")   # prefer photos with a background
-        if ph and p.get("strPlayer"):
-            out[_norm(p.get("strPlayer"))] = ph
-    return out
-
-
 def tsdb_player(name):
     """{photo, club} for a player by name from TheSportsDB (free, no daily cap), cached."""
     if not name:
@@ -1800,32 +1632,6 @@ def _team_form_before(name, year, before_utc):
     return {"played": played, "points": pts, "gf": gf, "ga": ga, "gd": gf - ga}
 
 
-def _team_injuries(name, year):
-    try:
-        roster = espn_roster(name, season=year) or []
-    except Exception:
-        roster = []
-    return sum(1 for p in roster if p.get("available") is False)
-
-
-def _suspension_penalty(name, year, before_utc):
-    """Red cards in the team's MOST RECENT finished match before this one → players
-    suspended for THIS match only. Cards reflect from the next match (not the first),
-    and clear after the suspension is served — not a permanent cumulative penalty."""
-    cn = _canon(name)
-    cand = [m for m in get_matches_espn(str(year), ttl=300).get("matches", [])
-            if m.get("status") == "FINISHED" and (m.get("utcDate") or "") < (before_utc or "~")
-            and cn in (_canon((m.get("home") or {}).get("name")), _canon((m.get("away") or {}).get("name")))]
-    if not cand:
-        return 0
-    cand.sort(key=lambda m: m.get("utcDate") or "")
-    last = cand[-1]
-    side = "home" if _canon((last.get("home") or {}).get("name")) == cn else "away"
-    det = (get_match_espn(str(last.get("id"))) or {}).get("match") or {}
-    return sum(1 for e in det.get("events", [])
-               if e.get("side") == side and "card" in (t := (e.get("type") or "").lower()) and "red" in t)
-
-
 def _card_suspensions(team_name, year, before_utc):
     """Set of normalized player names suspended for this team's match at `before_utc`, applying
     FIFA card rules chronologically:
@@ -1927,18 +1733,6 @@ def _injury_impact(team_name, year, ratings):
         roster = []
     return round(sum(ratings.get(_norm(p.get("name") or ""), 1.0)
                      for p in roster if p.get("available") is False), 2)
-
-
-def _rating(name, year, form, inj, susp):
-    rank = rank_for(name, year) or 60
-    R = 1500.0
-    R += (50 - min(max(int(rank), 1), 130)) * 4          # FIFA ranking (base strength; tuned down vs overconfident)
-    if form and form["played"] > 0:                       # PRE-MATCH form (games before this one)
-        R += (form["points"] / form["played"]) * 40
-        R += (form["gd"] / form["played"]) * 20
-    R -= inj * 8                                          # current injuries / unavailable
-    R -= susp * 30                                        # players suspended for THIS match (prev-match reds)
-    return R
 
 
 _CONFED = {}
