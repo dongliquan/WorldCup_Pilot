@@ -2478,6 +2478,7 @@ function renderAdvTrend(){
   let vis=[], M=1;                                   // vis = baseline + each group's round-3 resolution (12 steps)
   const X=p=> M<=1 ? m.l + xw/2 : m.l + p*xw/(M-1);
   const pathOf=t=>{ let s=""; vis.forEach((abs,p)=>{ s+=(p?"L":"M")+X(p).toFixed(1)+" "+Y(t[abs]).toFixed(1)+" "; }); return s; };
+  const pathRange=(t,a,z)=>{ let s=""; for(let q=a;q<=z;q++){ s+=(q===a?"M":"L")+X(q).toFixed(1)+" "+Y(t[vis[q]]).toFixed(1)+" "; } return s; };
   const chart = host.querySelector("#advtChart");
   function computeVis(){                              // each group's 3rd place is set when its LAST round-3 match ends →
     const lastByG={};                                // 12 group-resolution checkpoints (+ baseline). Same for every team.
@@ -2497,8 +2498,10 @@ function renderAdvTrend(){
   function drawHl(){
     let s="";
     D.order.forEach(n=>{ if(n===_advSel) return; s+=`<path d="${pathOf(trendByName[n])}" fill="none" stroke="#7f8893" stroke-opacity=".42" stroke-width="1.4"/>`; });
-    s+=`<path id="advtSelLine" d="${pathOf(trendByName[_advSel])}" fill="none" stroke="#34c759" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-    host.querySelector("#advtHl").innerHTML = s;   // stroke recolored per step in renderAdvDay
+    // selected team: future (not-yet-played) part white, completed part green/red — set in renderAdvDay
+    s+=`<path id="advtSelFuture" fill="none" stroke="#ffffff" stroke-opacity=".65" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s+=`<path id="advtSelDone" fill="none" stroke="#34c759" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    host.querySelector("#advtHl").innerHTML = s;
   }
   const bingo = host.querySelector("#advtBingo");
   bingo.innerHTML = GL.map(L=>`<div class="advt-bc" data-g="${L}"><span class="g" style="${groupChipStyle(L)}">${L}</span><span class="m"></span><span class="n"></span><span class="l"></span></div>`).join("");
@@ -2528,8 +2531,11 @@ function renderAdvTrend(){
     const inZone = (day.grpRank && day.grpRank<=2) || (day.rank3 && day.rank3[0]<=8);
     const col = (day.grpRank || day.rank3) ? (inZone?okCol:noCol) : "var(--mute)";
     host.querySelector("#advtCursor").setAttribute("x1",X(p)); host.querySelector("#advtCursor").setAttribute("x2",X(p));
-    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", col==="var(--mute)"?"#7f8893":col);
-    const selLine=host.querySelector("#advtSelLine"); if(selLine) selLine.setAttribute("stroke", col==="var(--mute)"?"#7f8893":col);
+    const lineCol = col==="var(--mute)"?"#7f8893":col;
+    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", lineCol);
+    const done=host.querySelector("#advtSelDone"), fut=host.querySelector("#advtSelFuture");
+    if (done){ done.setAttribute("d", pathRange(sel,0,p)); done.setAttribute("stroke", lineCol); }   // played → green/red
+    if (fut){ fut.setAttribute("d", pathRange(sel,p,M-1)); }                                          // not yet → white
     const cur=(D.marks||[])[abs], dayL=host.querySelector("#advtDayL");
     let mk0=cur;                                     // show the match of THIS group's 3rd-place team (the wildcard-relevant one)
     if (cur){ const third=(D.groupThirds[abs][cur.L]||{}).team;
