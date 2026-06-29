@@ -985,9 +985,9 @@
   .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
   .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
   .advt-ctrl { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
-  .advt-replay { cursor: pointer; border: 1px solid #3f7bd6; color: #fff; font-family: inherit;
-    background: linear-gradient(180deg, #5b9bff, #3f7bd6); font-weight: 800; border-radius: 8px;
-    padding: 5px 11px; font-size: 12px; white-space: nowrap; }
+  .advt-replay { cursor: pointer; border: 1px solid #3f7bd6; color: #fff; font-family: inherit; flex: none;
+    background: linear-gradient(180deg, #5b9bff, #3f7bd6); border-radius: 8px; padding: 0; width: 30px; height: 26px;
+    font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; }
   .advt-prog { flex: 1; height: 8px; background: var(--line); border-radius: 999px; position: relative; cursor: pointer; touch-action: none; }
   .advt-prog-fill { height: 100%; width: 0%; background: #5b9bff; border-radius: 999px; position: relative; }
   .advt-prog-fill::after { content: ""; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
@@ -2454,8 +2454,8 @@ function renderAdvTrend(){
         <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:center">${tr("thPts")}</th><th style="text-align:center">${tr("thGD")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
         <tbody id="advtMeta"></tbody></table></div>
         <div class="advt-ctrl">
-          <button class="advt-replay" id="advtReplay">↺ ${tr("advReplay")}</button>
           <div class="advt-prog"><div class="advt-prog-fill" id="advtProg"></div></div>
+          <button class="advt-replay" id="advtReplay" title="${tr("advReplay")}" aria-label="${tr("advReplay")}">↺</button>
         </div></div>
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
