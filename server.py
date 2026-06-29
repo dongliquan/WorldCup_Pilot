@@ -17,6 +17,7 @@ API (all JSON unless noted):
   GET  /api/team?id=<id>      -> { team: {...}, source }
   POST /api/refresh           -> clears the on-disk cache
 """
+import calendar
 import hashlib
 import json
 import math
@@ -341,25 +342,60 @@ def mock_team(team_id):
 
 
 # ---- data assembly ----------------------------------------------------------
-def _edition_done(season):
-    """True once every match of the edition is final — results never change again, so the
-    fixtures/standings can be served permanently from cache (no more live re-fetching)."""
+def _utc_epoch(iso):
+    """ESPN UTC timestamp ('2026-07-19T19:00Z') -> epoch seconds, or None."""
+    if not iso:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%MZ", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            return calendar.timegm(time.strptime(iso, fmt))
+        except ValueError:
+            continue
+    return None
+
+
+def _live_ttl(season):
+    """Adaptive cache lifetime for the current edition. The schedule and finished results never
+    change, so we only re-fetch ESPN when live state actually can: poll tightly while a match is
+    in play (or just finished — knockout slots are filling in), and otherwise hold the cache until
+    just before the next kickoff. Between match days this means ~no API calls at all; a fully
+    finished edition caches permanently. Finished scores ride along in the held list — no refetch."""
+    short = int(CONFIG.get("cache_ttl_seconds", 60))
     cached, _ = _read_cache(f"espn-year-{season}", 10 ** 9)
     if not cached:
-        return False
+        return short
+    now = time.time()
+    any_unfinished = False
+    recent_finish = False
+    next_kick = None
     for ev in cached.get("events", []):
-        n = (((ev.get("status") or {}).get("type") or {}).get("name") or "")
-        if "FINAL" not in n and n != "STATUS_FULL_TIME":
-            return False
-    return True
+        name = (((ev.get("status") or {}).get("type") or {}).get("name") or "")
+        state = (((ev.get("status") or {}).get("type") or {}).get("state") or "")
+        ts = _utc_epoch(ev.get("date"))
+        if state == "in" or any(k in name for k in ("HALF", "IN_PROGRESS", "OVERTIME", "SHOOTOUT", "PROGRESS")):
+            return short                                       # live now → track closely
+        if "FINAL" in name or name == "STATUS_FULL_TIME":
+            if ts is not None and 0 <= now - ts <= 4 * 3600:   # just finished → downstream bracket
+                recent_finish = True                           # slots may still be populating
+            continue
+        any_unfinished = True
+        if ts is not None and ts <= now and now - ts <= 4 * 3600:
+            return short                                       # kickoff passed, not yet live/final → poll
+        if ts is not None and ts > now and (next_kick is None or ts < next_kick):
+            next_kick = ts
+    if not any_unfinished:
+        return 10 ** 9                                         # whole edition final → permanent
+    if recent_finish:
+        return max(short, 300)                                 # settle window: catch slot fill-ins
+    if next_kick is None:
+        return 6 * 3600                                        # nothing parseable upcoming → hold
+    return int(max(short, min(next_kick - now - 120, 6 * 3600)))  # hold until ~2 min pre-kickoff
 
 
 def get_matches():
-    """Current edition fixtures/scores — ESPN, short cache (live). No token, no mock.
-    Once the whole edition is finished, results are permanent → stop re-fetching."""
+    """Current edition fixtures/scores — ESPN, adaptive cache (see _live_ttl). No token, no mock."""
     season = str(CONFIG.get("season"))
-    ttl = 10 ** 9 if _edition_done(season) else int(CONFIG.get("cache_ttl_seconds", 60))
-    return get_matches_espn(season, ttl=ttl)
+    return get_matches_espn(season, ttl=_live_ttl(season))
 
 
 def _espn_status(s):
@@ -479,8 +515,7 @@ def get_standings():
     """Current edition group standings — ESPN, short cache (live). No token, no mock.
     Enriched with each team's yellow/red card totals for display."""
     season = str(CONFIG.get("season"))
-    ttl = 10 ** 9 if _edition_done(season) else int(CONFIG.get("cache_ttl_seconds", 60))
-    data = get_standings_espn(season, ttl=ttl)
+    data = get_standings_espn(season, ttl=_live_ttl(season))
     try:
         tot = _team_card_totals(season)
         for g in data.get("groups", []):
