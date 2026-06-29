@@ -2333,10 +2333,17 @@ def _ai_revalidate_bg(mid, provider, ckey):
 
 
 def ai_pick(mid, provider):
-    """Cached real-LLM pick. provider = 'groq' | 'openai'. Show the cached pick immediately;
-    if it's stale, refresh in the background and replace it only on success (never blanks)."""
+    """Cached real-LLM pick. provider = 'groq' | 'openai'.
+    • groq   — live: show the cached pick now, refresh stale ones in the background (replace only on success).
+    • openai — ChatGPT picks are entered MANUALLY (no working API), so this is CACHE-ONLY: it never calls
+      the API and never writes, so a hand-cached pick is never overwritten or blanked."""
     provider = "openai" if provider == "openai" else "groq"
     ckey = f"aipick-{provider}-{mid}"
+    if provider == "openai":
+        cached, _ = _read_cache(ckey, 10 ** 9)
+        if cached is not None and cached.get("available"):
+            return cached
+        return {"available": False, "reason": "manual", "provider": "openai"}
     det = (get_match_espn(str(mid)) or {}).get("match") or {}
     ttl = 10 ** 9 if det.get("status") == "FINISHED" else 21600
     cached, fresh = _read_cache(ckey, ttl)
