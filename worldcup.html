@@ -2509,10 +2509,9 @@ function renderAdvTrend(){
   const tbody = host.querySelector("#advtMeta");
 
   let sortedByVis=[], posByVis=[];
-  function computeRanks(){                            // rank all 12 contenders by R32% at each checkpoint (top 8 = advancing)
-    const cmp=abs=>((x,y)=>{ const dx=D.boards[x].days[abs], dy=D.boards[y].days[abs];
-      return dy.adv-dx.adv || ((dx.rank3?dx.rank3[0]:99)-(dy.rank3?dy.rank3[0]:99))
-        || dy.line[0]-dx.line[0] || dy.line[1]-dx.line[1] || (x<y?-1:1); });
+  function computeRanks(){                            // rank all 12 contenders by CURRENT standing (pts → GD → GF) each step; top 8 = advancing
+    const cmp=abs=>((x,y)=>{ const dx=D.boards[x].days[abs].line, dy=D.boards[y].days[abs].line;
+      return dy[0]-dx[0] || dy[1]-dx[1] || dy[2]-dx[2] || (x<y?-1:1); });
     sortedByVis = vis.map(abs=> [...D.order].sort(cmp(abs)));
     posByVis = sortedByVis.map(ord=>{ const mp={}; ord.forEach((n,i)=> mp[n]=i+1); return mp; });
   }
