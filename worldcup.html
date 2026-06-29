@@ -985,13 +985,14 @@
   .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
   .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
   .advt-ctrl { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
-  .advt-replay { cursor: pointer; border: 1px solid #7fa8e6; color: #fff; font-family: inherit; flex: none;
-    background: linear-gradient(180deg, #9ec4f5, #7fa8e6); border-radius: 7px; padding: 0; width: 24px; height: 22px;
-    font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .advt-replay { cursor: pointer; background: var(--glass); border: 1px solid var(--line-2); color: var(--dim);
+    width: 24px; height: 22px; border-radius: 7px; font-size: 13px; display: grid; place-items: center;
+    transition: .15s; flex: none; font-family: inherit; }
+  .advt-replay:hover { color: var(--text); border-color: var(--gold); }
   .advt-prog { flex: 1; height: 7px; background: var(--line); border-radius: 999px; position: relative; cursor: pointer; touch-action: none; }
-  .advt-prog-fill { height: 100%; width: 0%; background: #9ec4f5; border-radius: 999px; position: relative; }
+  .advt-prog-fill { height: 100%; width: 0%; background: var(--gold); border-radius: 999px; position: relative; }
   .advt-prog-fill::after { content: ""; position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
-    width: 12px; height: 12px; border-radius: 50%; background: #9ec4f5; border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    width: 12px; height: 12px; border-radius: 50%; background: var(--gold); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
   .advt-tbl { width: 100%; border-collapse: collapse; }
   .advt-tbl th { font-size: 10px; color: var(--mute); font-weight: 600; text-align: left; padding: 5px 6px;
     border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
@@ -2458,7 +2459,7 @@ function renderAdvTrend(){
         <tbody id="advtMeta"></tbody></table></div>
         <div class="advt-ctrl">
           <div class="advt-prog"><div class="advt-prog-fill" id="advtProg"></div></div>
-          <button class="advt-replay" id="advtReplay" title="${tr("advReplay")}" aria-label="${tr("advReplay")}">↺</button>
+          <button class="advt-replay" id="advtReplay" title="${tr("advReplay")}" aria-label="${tr("advReplay")}">↻</button>
         </div></div>
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
@@ -2496,7 +2497,8 @@ function renderAdvTrend(){
   function drawHl(){
     let s="";
     D.order.forEach(n=>{ if(n===_advSel) return; s+=`<path d="${pathOf(trendByName[n])}" fill="none" stroke="#7f8893" stroke-opacity=".42" stroke-width="1.4"/>`; });
-    s+=`<path d="${pathOf(trendByName[_advSel])}" fill="none" stroke="#e9c46a" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const col = D.boards[_advSel].advanced ? "#34c759" : "#ef4444";   // green if through, red if out (matches the % below)
+    s+=`<path d="${pathOf(trendByName[_advSel])}" fill="none" stroke="${col}" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
     host.querySelector("#advtHl").innerHTML = s;
   }
   const bingo = host.querySelector("#advtBingo");
