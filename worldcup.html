@@ -982,7 +982,14 @@
   .advt-deck3 { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; align-items: stretch; margin-top: 4px; }
   @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 280px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
-  .advt-sel-col { padding-right: 2px; overflow: auto; }
+  .advt-sel-col { display: flex; flex-direction: column; padding-right: 2px; overflow: hidden; }
+  .advt-tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
+  .advt-ctrl { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
+  .advt-replay { cursor: pointer; border: 1px solid var(--gold); color: #1a1205; font-family: inherit;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold)); font-weight: 800; border-radius: 8px;
+    padding: 5px 11px; font-size: 12px; white-space: nowrap; }
+  .advt-prog { flex: 1; height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .advt-prog-fill { height: 100%; width: 0%; background: var(--gold); border-radius: 999px; transition: width .15s linear; }
   .advt-tbl { width: 100%; border-collapse: collapse; }
   .advt-tbl th { font-size: 10px; color: var(--mute); font-weight: 600; text-align: left; padding: 5px 6px;
     border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
@@ -2449,8 +2456,13 @@ function renderAdvTrend(){
     <div class="advt-sub">${tr("advRaceSub")}</div>
     <div class="advt-deck3">
       <div class="advt-sel-col">
+        <div class="advt-tbl-wrap">
         <table class="advt-tbl"><thead><tr><th>#</th><th>${tr("groups")}</th><th>${tr("thTeam")}</th><th style="text-align:right">${tr("advCol")}</th></tr></thead>
         <tbody id="advtMeta">${meta}</tbody></table></div>
+        <div class="advt-ctrl">
+          <button class="advt-replay" id="advtReplay">↺ ${tr("advReplay")}</button>
+          <div class="advt-prog"><div class="advt-prog-fill" id="advtProg"></div></div>
+        </div></div>
       <div class="advt-card">
         <div class="advt-kick"><span id="advtSel">–</span><span class="advt-day" id="advtDayL">–</span></div>
         <svg class="advt-chart" id="advtChart" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${tr("advRace")}"></svg>
@@ -2518,6 +2530,7 @@ function renderAdvTrend(){
       nm.innerHTML=flagImg(c.team,"sm")+c.team;
       ln.textContent=`${c.pts}·${c.gd>=0?'+':''}${c.gd}·${c.gf}`; });
     host.querySelector("#advtFav").textContent=`${day.fav}/11`;
+    host.querySelector("#advtProg").style.width = (M<=1 ? 100 : (p/(M-1)*100)) + "%";
   }
   function playAnim(){
     if (_advTimer){ clearInterval(_advTimer); _advTimer=null; }
@@ -2534,6 +2547,7 @@ function renderAdvTrend(){
   }
 
   host.querySelectorAll(".advt-row").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
+  host.querySelector("#advtReplay").addEventListener("click", playAnim);   // replay current team's run
   selectAdv(_advSel);                               // initial team auto-plays
 }
 
