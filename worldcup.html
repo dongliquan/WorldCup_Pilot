@@ -979,10 +979,10 @@
   .advt-sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; max-width: 72ch; }
   .advt-load { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--mute); padding: 30px 0; }
   /* layout: country selector | chart | bingo (left → right) */
-  .advt-deck3 { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; align-items: start; margin-top: 4px; }
+  .advt-deck3 { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; align-items: stretch; margin-top: 4px; }
   @media (max-width: 1180px) { .advt-deck3 { grid-template-columns: 280px minmax(0,1fr); } .advt-bingo-card { grid-column: 1 / -1; } }
   @media (max-width: 760px) { .advt-deck3 { grid-template-columns: 1fr; } .advt-bingo-card { grid-column: auto; } }
-  .advt-sel-col { padding-right: 2px; }
+  .advt-sel-col { padding-right: 2px; overflow: auto; }
   .advt-tbl { width: 100%; border-collapse: collapse; }
   .advt-tbl th { font-size: 10px; color: var(--mute); font-weight: 600; text-align: left; padding: 5px 6px;
     border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); z-index: 2; }
@@ -1014,7 +1014,8 @@
   .advt-flag { width: 26px; height: 18px; object-fit: cover; border-radius: 3px; flex: none; }
   .advt-flag.sm { width: 22px; height: 15px; }
   .advt-metanote { font-size: 12px; color: var(--mute); margin: 12px 0 0; }
-  .advt-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--glass); }
+  .advt-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--glass); display: flex; flex-direction: column; }
+  .advt-deck3 > .advt-card .advt-bigrow { margin-top: auto; }
   .advt-kick { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px;
     color: var(--mute); margin-bottom: 8px; font-weight: 700; gap: 8px; }
   .advt-kick #advtSel, .advt-kick #advtBingoT { color: var(--text); }
@@ -2403,15 +2404,15 @@ function renderGroups(){
       <div class="gn-t">${tr("advFormat")}</div>
       <div class="gn-sub">${tr("rankGroupTitle")}</div>
       <ol class="gn-rule">${(GROUP_CRIT[LANG]||GROUP_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`
+    + `<div id="advtrend" class="advt-wrap"></div>`
     + `<div class="groups-note">
       <div class="gn-sub">${tr("rankThirdTitle")}</div>
-      <ol class="gn-rule">${(THIRD_CRIT[LANG]||THIRD_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`
-    + `<div id="advtrend" class="advt-wrap"></div>`;
+      <ol class="gn-rule">${(THIRD_CRIT[LANG]||THIRD_CRIT.en).map(c=>`<li>${c}</li>`).join("")}</ol></div>`;
   renderAdvTrend();
 }
 
 /* ---------- advancement trend: day-by-day R32 race + 3rd-place wildcard bingo ---------- */
-let _advData = undefined, _advSel = null, _advDay = null, _advMatchH = null;
+let _advData = undefined, _advSel = null, _advDay = null, _advTimer = null;
 function _advReduce(){ try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } }
 function renderAdvTrend(){
   const host = document.getElementById("advtrend"); if (!host) return;
@@ -2425,7 +2426,7 @@ function renderAdvTrend(){
   if (!D || !(D.order||[]).length){ host.innerHTML = ""; return; }   // pre-tournament / no data
   const N = D.labels.length, GL = D.groupsList;
   if (!_advSel || !D.boards[_advSel]) _advSel = D.boards["South Korea"] ? "South Korea" : D.order[0];   // default: Korea
-  if (_advDay == null || _advDay >= N) _advDay = N - 1;
+  if (_advTimer){ clearInterval(_advTimer); _advTimer = null; }   // stop any animation from a prior render
   const trendByName = {}; D.teams.forEach(t=> trendByName[t.name] = t.trend);
   const advCount = D.order.filter(n=> D.boards[n].advanced).length;
   // flag + abbreviation lookups from the standings already in memory
@@ -2460,21 +2461,25 @@ function renderAdvTrend(){
         <div class="advt-bingo" id="advtBingo"></div>
       </div>
     </div>
-    <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>
-    <div class="advt-trans">
-      <input type="range" id="advtScrub" min="0" max="${N-1}" value="${_advDay}" aria-label="timeline">
-      <span class="advt-tl" id="advtTl">–</span>
-    </div>`;
+    <div class="advt-metanote">${advCount} ${tr("advAuto")} · ${D.order.length-advCount} ${tr("eliminated")} — ${tr("advFormat")}</div>`;
 
   const W=1000,H=380,m={l:38,r:84,t:14,b:34}, xw=W-m.l-m.r, yh=H-m.t-m.b;
-  const X=i=> m.l + i*xw/(N-1), Y=v=> m.t + (1-v/100)*yh;
-  const pathOf=t=>{ let s=""; t.forEach((v,i)=>{ s+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" "; }); return s; };
+  const Y=v=> m.t + (1-v/100)*yh;
+  let vis=[], M=1;                                   // vis = checkpoints where the SELECTED team's odds moved
+  const X=p=> M<=1 ? m.l + xw/2 : m.l + p*xw/(M-1);
+  const pathOf=t=>{ let s=""; vis.forEach((abs,p)=>{ s+=(p?"L":"M")+X(p).toFixed(1)+" "+Y(t[abs]).toFixed(1)+" "; }); return s; };
   const chart = host.querySelector("#advtChart");
+  function computeVis(team){                         // baseline + every round-3 match that moved this team's % (≥1.5)
+    const t=trendByName[team], out=[0]; let last=t[0];
+    for(let k=1;k<N;k++){ if(Math.abs(t[k]-last) >= 1.5){ out.push(k); last=t[k]; } }
+    if(out[out.length-1]!==N-1) out.push(N-1);
+    return out;
+  }
   function drawChart(){
     let g="";
     for(let p=0;p<=100;p+=25){ g+=`<line x1="${m.l}" y1="${Y(p)}" x2="${W-m.r}" y2="${Y(p)}" stroke="#7f8893" stroke-opacity=".18"/>`;
       g+=`<text x="${m.l-6}" y="${Y(p)+4}" fill="#8a93a0" font-size="11" text-anchor="end">${p}</text>`; }
-    D.labels.forEach((c,i)=>{ if(i%3===0||i===N-1) g+=`<text x="${X(i)}" y="${H-12}" fill="#8a93a0" font-size="10" text-anchor="middle">${c}</text>`; });
+    vis.forEach((abs,p)=>{ if(M<=8 || p===0 || p===M-1 || p%2===0) g+=`<text x="${X(p)}" y="${H-12}" fill="#8a93a0" font-size="10" text-anchor="middle">${D.labels[abs]}</text>`; });
     let faint=""; D.teams.filter(t=>!t.third).forEach(t=>{ faint+=`<path d="${pathOf(t.trend)}" fill="none" stroke="#7f8893" stroke-opacity=".28" stroke-width="1.2"/>`; });
     chart.innerHTML = g + faint + `<g id="advtHl"></g>
       <line id="advtCursor" y1="${m.t}" y2="${H-m.b}" stroke="#9aa3ad" stroke-opacity=".6" stroke-dasharray="3 4"/>
@@ -2490,16 +2495,16 @@ function renderAdvTrend(){
   bingo.innerHTML = GL.map(L=>`<div class="advt-bc" data-g="${L}"><span class="g" style="${groupChipStyle(L)}">${L}</span><span class="m"></span><span class="n"></span><span class="l"></span></div>`).join("");
   const bcells = {}; bingo.querySelectorAll(".advt-bc").forEach(el=> bcells[el.dataset.g]=el);
 
-  function renderAdvDay(i){
-    _advDay=i; const b=D.boards[_advSel], day=b.days[i], sel=trendByName[_advSel];
+  function renderAdvDay(p){                           // p = visible position → abs checkpoint
+    _advDay=p; const abs=vis[p], b=D.boards[_advSel], day=b.days[abs], sel=trendByName[_advSel];
     const okCol="#34c759", noCol="#ef4444";
-    host.querySelector("#advtCursor").setAttribute("x1",X(i)); host.querySelector("#advtCursor").setAttribute("x2",X(i));
-    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(i)); dot.setAttribute("cy",Y(sel[i])); dot.setAttribute("fill", b.advanced?okCol:noCol);
-    const mk0=(D.marks||[])[i], dayL=host.querySelector("#advtDayL");
+    host.querySelector("#advtCursor").setAttribute("x1",X(p)); host.querySelector("#advtCursor").setAttribute("x2",X(p));
+    const dot=host.querySelector("#advtDot"); dot.setAttribute("cx",X(p)); dot.setAttribute("cy",Y(sel[abs])); dot.setAttribute("fill", b.advanced?okCol:noCol);
+    const mk0=(D.marks||[])[abs], dayL=host.querySelector("#advtDayL");
     if (mk0){ dayL.innerHTML = `${groupLabel(mk0.L)} · ${flagImg(mk0.h,"sm")}${mk0.h} <b>${mk0.hs}-${mk0.as}</b> ${mk0.a}${flagImg(mk0.a,"sm")}`; }
     else { dayL.textContent = tr("advR2End"); }
     const big=host.querySelector("#advtBig"); big.innerHTML = Math.round(day.adv)+'<small>%</small>'; big.style.color = b.advanced?okCol:noCol;
-    let st, col, fin=(i===N-1);
+    let st, col, fin=(abs===N-1);
     if (day.grpRank && day.grpRank<=2){ st=tr("advAuto"); col=okCol; }
     else if (day.rank3){ const ok=day.rank3[0]<=8; st=`${tr("third")} ${day.rank3[0]}/${day.rank3[1]} · `+(fin?(b.advanced?tr("clinched"):tr("advElimFixed")):(ok?tr("advInZone"):tr("advOutZone"))); col=(fin?b.advanced:ok)?okCol:noCol; }
     else { st=tr("advTba"); col="var(--mute)"; }
@@ -2507,38 +2512,29 @@ function renderAdvTrend(){
     const favset=new Set(day.favL);
     GL.forEach(L=>{ const el=bcells[L], mk=el.querySelector(".m"), nm=el.querySelector(".n"), ln=el.querySelector(".l");
       if (L===b.group){ el.className="advt-bc own"; mk.textContent="●"; nm.innerHTML=flagImg(_advSel,"sm")+_advSel; ln.textContent=tr("advOwnGroup"); return; }
-      const c=D.groupThirds[i][L];
+      const c=D.groupThirds[abs][L];
       if (!c.has){ el.className="advt-bc nodata"; mk.textContent="·"; nm.textContent="—"; ln.textContent=tr("advNoGame"); return; }
       const fav=favset.has(L); el.className="advt-bc "+(fav?"fav":"risk"); mk.textContent=fav?"✓":"✕";
       nm.innerHTML=flagImg(c.team,"sm")+c.team;
       ln.textContent=`${c.pts}·${c.gd>=0?'+':''}${c.gd}·${c.gf}`; });
     host.querySelector("#advtFav").textContent=`${day.fav}/11`;
-    host.querySelector("#advtScrub").value=i;
-    host.querySelector("#advtTl").textContent = (i===0 ? tr("advR2End") : `${tr("advMatch")} ${i}/${N-1}`);
+  }
+  function playAnim(){
+    if (_advTimer){ clearInterval(_advTimer); _advTimer=null; }
+    if (_advReduce() || M<=1){ renderAdvDay(M-1); return; }   // reduced motion → jump to final
+    let p=0; renderAdvDay(0);
+    _advTimer=setInterval(()=>{ p++; if(p>=M){ clearInterval(_advTimer); _advTimer=null; return; } renderAdvDay(p); }, 600);
   }
   function selectAdv(n){ _advSel=n; const b=D.boards[n];
     host.querySelectorAll(".advt-row").forEach(el=> el.classList.toggle("sel", decodeURIComponent(el.dataset.team)===n));
     host.querySelector("#advtSel").innerHTML = `${flagImg(n,"sm")}${n} (${groupLabel(b.group)})`;
     host.querySelector("#advtBingoT").textContent = `${n} · ${tr("advVsThirds")}`;
-    drawHl(); renderAdvDay(_advDay);
+    vis = computeVis(n); M = vis.length;
+    drawChart(); drawHl(); playAnim();              // clicking a team replays its run
   }
 
   host.querySelectorAll(".advt-row").forEach(el=> el.addEventListener("click", ()=> selectAdv(decodeURIComponent(el.dataset.team))));
-  host.querySelector("#advtScrub").addEventListener("input", (e)=> renderAdvDay(+e.target.value));
-
-  drawChart(); selectAdv(_advSel); renderAdvDay(_advDay);
-
-  // match the selector column's height to the chart / bingo cards (wide layout only)
-  _advMatchH = ()=>{
-    const sc = host.querySelector(".advt-sel-col");
-    const cards = host.querySelectorAll(".advt-deck3 > .advt-card");
-    if (!sc || !cards.length) return;
-    if (window.innerWidth <= 760){ sc.style.height = ""; sc.style.overflowY = ""; return; }
-    const h = Math.max(...[...cards].map(c=> c.offsetHeight));
-    if (h > 0){ sc.style.height = h + "px"; sc.style.overflowY = "auto"; }
-  };
-  _advMatchH(); setTimeout(()=> _advMatchH && _advMatchH(), 60);
-  if (!window._advResizeHooked){ window._advResizeHooked = true; window.addEventListener("resize", ()=> _advMatchH && _advMatchH()); }
+  selectAdv(_advSel);                               // initial team auto-plays
 }
 
 /* ---------- notifications / subscriptions (teams & matches) ---------- */
