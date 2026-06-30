@@ -399,11 +399,15 @@ def get_matches():
 
 
 def _espn_status(s):
-    n = ((s or {}).get("type") or {}).get("name", "")
-    if "FINAL" in n or n == "STATUS_FULL_TIME":
-        return "FINISHED"
-    if any(k in n for k in ("HALF", "IN_PROGRESS", "OVERTIME", "SHOOTOUT", "PROGRESS")):
+    t = (s or {}).get("type") or {}
+    n = t.get("name", "") or ""
+    state = t.get("state", "") or ""
+    # live FIRST: a level knockout heading into ET/PK stays state="in" (and STATUS_SHOOTOUT) — it is
+    # NOT finished even though ESPN may flash STATUS_FULL_TIME. Only completed/post is truly final.
+    if state == "in" or any(k in n for k in ("HALF", "IN_PROGRESS", "OVERTIME", "SHOOTOUT", "PROGRESS")):
         return "IN_PLAY"
+    if t.get("completed") is True or state == "post" or "FINAL" in n or n == "STATUS_FULL_TIME":
+        return "FINISHED"
     return "SCHEDULED"
 
 
@@ -441,6 +445,12 @@ def _get_matches_espn(year, ttl):
                 return int(c.get("score"))
             except (TypeError, ValueError):
                 return None
+
+        def sho(c):   # penalty-shootout score (knockout matches level after ET)
+            try:
+                return int(c.get("shootoutScore"))
+            except (TypeError, ValueError):
+                return None
         v = comp.get("venue", {}) or {}
         city = (v.get("address", {}) or {}).get("city")
         st = ev.get("status") or {}
@@ -453,7 +463,9 @@ def _get_matches_espn(year, ttl):
                     "detail": stype.get("shortDetail") or stype.get("detail"),
                     "statusState": stype.get("state"),
                     "home": team(h), "away": team(a),
-                    "score": {"home": sc(h), "away": sc(a), "winner": None}})
+                    "score": {"home": sc(h), "away": sc(a), "winner": None,
+                              "pens": ({"home": sho(h), "away": sho(a)}
+                                       if (sho(h) is not None or sho(a) is not None) else None)}})
     out.sort(key=lambda x: x["utcDate"] or "")
     return {"dates": unique_dates(out), "matches": out, "source": "espn"}
 
@@ -1366,6 +1378,24 @@ def _parse_box_stats(data):
     return out if (out["home"] or out["away"]) else None
 
 
+def _parse_shootout(data, home_name, away_name):
+    """ESPN summary 'shootout' → per-side kick list with player + made/missed, for the X·O timeline.
+    Returns {'home':[{n,player,scored}], 'away':[...]} or None when there was no shootout."""
+    sh = data.get("shootout") or []
+    if not sh:
+        return None
+    out = {"home": [], "away": []}
+    for blk in sh:
+        side = ("home" if _canon(blk.get("team")) == _canon(home_name)
+                else "away" if _canon(blk.get("team")) == _canon(away_name) else None)
+        if not side:
+            continue
+        for s in (blk.get("shots") or []):
+            out[side].append({"n": s.get("shotNumber"), "player": s.get("player"),
+                              "scored": bool(s.get("didScore"))})
+    return out if (out["home"] or out["away"]) else None
+
+
 def _parse_subs(data, home_id, away_id):
     """ESPN keyEvents → {'home': [{min,in,inPhoto,out,outPhoto}], 'away': [...]} substitutions."""
     headshot = {}      # athlete id → headshot (same photos the lineup uses)
@@ -1478,8 +1508,8 @@ def _get_match_espn(espn_id):
         h2h_ev = (saved.get("h2h") or {}).get("events") or []
         h2h_old = bool(h2h_ev) and "hs" not in h2h_ev[0]
         need = (not saved.get("stats") or not saved.get("subs") or subs_old
-                or "form" not in saved or "h2h" not in saved or h2h_old)
-        if need:   # backfill/upgrade older cached finals
+                or "form" not in saved or "h2h" not in saved or h2h_old or "shootout" not in saved)
+        if need:   # backfill/upgrade older cached finals (one-time per match, then served from cache)
             try:
                 d2 = http_json(f"{ESPN_BASE}/summary?event={espn_id}", f"espn-sum-{espn_id}", ttl=10 ** 9)
                 hn, an = (saved.get("home") or {}).get("name"), (saved.get("away") or {}).get("name")
@@ -1491,6 +1521,7 @@ def _get_match_espn(espn_id):
                     saved["subs"] = sb
                 saved["form"] = _parse_form(d2 or {}, hn, an)
                 saved["h2h"] = _parse_h2h(d2 or {}, hn, an)
+                saved["shootout"] = _parse_shootout(d2 or {}, hn, an)
                 _write_cache(f"match-final-{espn_id}", saved)
             except Exception:
                 pass
@@ -1512,6 +1543,12 @@ def _get_match_espn(espn_id):
             return int(c.get("score"))
         except (TypeError, ValueError):
             return None
+
+    def sho(c):
+        try:
+            return int(c.get("shootoutScore"))
+        except (TypeError, ValueError):
+            return None
     h, a = cs.get("home", {}), cs.get("away", {})
     status = _espn_status(comp.get("status"))
     events, venue, odds = espn_events(espn_id, (h.get("team") or {}).get("id"), (a.get("team") or {}).get("id"))
@@ -1519,11 +1556,15 @@ def _get_match_espn(espn_id):
     vname, vcity = (venue or {}).get("fullName"), vaddr.get("city")
     utc = comp.get("date") or ""
     out = {"id": espn_id, "home": team(h), "away": team(a), "utcDate": utc, "status": status,
-           "score": {"home": sc(h), "away": sc(a)}, "group": None, "espnMatched": True, "espnId": espn_id,
+           "score": {"home": sc(h), "away": sc(a),
+                     "pens": ({"home": sho(h), "away": sho(a)}
+                              if (sho(h) is not None or sho(a) is not None) else None)},
+           "group": None, "espnMatched": True, "espnId": espn_id,
            "events": events, "odds": odds, "attendance": None, "stats": _parse_box_stats(data),
            "subs": _parse_subs(data, (h.get("team") or {}).get("id"), (a.get("team") or {}).get("id")),
            "form": _parse_form(data, team(h)["name"], team(a)["name"]),
            "h2h": _parse_h2h(data, team(h)["name"], team(a)["name"]),
+           "shootout": _parse_shootout(data, team(h)["name"], team(a)["name"]),
            "venue": {"name": vname, "city": vcity, "country": vaddr.get("country"),
                      "image": ((venue_aerial(vname) or wiki_image(vname)) if vname else None),
                      "capacity": None, "surface": None},
