@@ -529,7 +529,7 @@ def get_standings():
     season = str(CONFIG.get("season"))
     data = get_standings_espn(season, ttl=_live_ttl(season))
     try:
-        tot = _team_card_totals(season)
+        tot = _team_card_totals_nonblocking(season)
         for g in data.get("groups", []):
             for r in g.get("table", []):
                 c = tot.get(_canon((r.get("team") or {}).get("name")), {})
@@ -2757,6 +2757,31 @@ def _team_card_totals(year):
                 t["y"] += 1
     _write_cache(key, tot)
     return tot
+
+
+_cardtotals_warming = set()
+
+
+def _team_card_totals_nonblocking(year):
+    """Card totals without blocking the request: serve any cached value (even stale),
+    otherwise warm it in the background and return {} for now (fills on next refresh).
+    Prevents a cold Groups view from stalling on ~dozens of match-summary fetches."""
+    key = f"cardtotals-{year}"
+    cached, _ = _read_cache(key, 10 ** 9)          # accept any age
+    if cached is not None:
+        return cached
+    if year not in _cardtotals_warming:
+        _cardtotals_warming.add(year)
+
+        def run():
+            try:
+                _team_card_totals(year)
+            except Exception as e:
+                print(f"[warn] cardtotals warm {year}: {e}")
+            finally:
+                _cardtotals_warming.discard(year)
+        threading.Thread(target=run, daemon=True).start()
+    return {}
 
 
 def _team_goal_tally(name, year):
