@@ -464,6 +464,7 @@
     font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
   .pred-score { text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 700; }
   .pred-score b { color: var(--text); font-family: var(--mono); font-size: 13px; }
+  .pred-score .ps-t { color: var(--text); font-weight: 700; }
   .pred-bar.slim { display: flex; height: 6px; border-radius: 999px; overflow: hidden; }
   .pred-bar.slim .pb { transition: width .4s; }
   .pred-bar .pb.h { background: #4a90e2; } .pred-bar .pb.d { background: #9aa6b2; } .pred-bar .pb.a { background: #e5705a; }
@@ -1868,14 +1869,26 @@ function renderBracket(){
   // (it's structural — independent of who wins). Falls back to a simple id-split for other formats. ----
   const R16_OF_R32 = [1,3,1,2,3,4,2,6,6,4,5,5,8,7,7,8];   // r32[i] (id order) feeds this R16 (1–8)
   const L16i=[1,2,5,6], R16i=[3,4,7,8];                   // left half = Semifinal 1 (QF1+QF2); right = SF2
+  const winOf = m => { if(!m||m.status!=="FINISHED") return null; const sc=m.score||{}, pn=sc.pens, h=m.home.name, a=m.away.name;
+    if(pn && pn.home!=null && pn.home!==pn.away) return pn.home>pn.away?h:a;
+    if(sc.home==null||sc.away==null) return null; return sc.home>sc.away?h:sc.away>sc.home?a:null; };
+  // find the match in `pool` actually played between the winners of ma,mb (once decided); else `fb`.
+  // ESPN's R16/QF ids don't follow bracket order, so id-position alone mis-orders resolved matches.
+  const played = (pool,ma,mb,fb) => { const wa=winOf(ma), wb=winOf(mb);
+    if(wa&&wb){ const m=pool.find(x=>{const n=[(x.home||{}).name,(x.away||{}).name]; return n.includes(wa)&&n.includes(wb);}); if(m) return m; }
+    return fb; };
   let L32,R32,L16,Rt16,LQF,RQF,LSF,RSF;
   if (r32.length===16 && r16.length===8 && qf.length===4 && sf.length===2){
     const feeders = idx => r32.filter((m,p)=> R16_OF_R32[p]===idx);   // the two R32 games feeding R16 #idx
-    const r16at = i => r16[i-1];
-    L16 = L16i.map(r16at);          Rt16 = R16i.map(r16at);
+    const R16m={}; for(const n of [1,2,3,4,5,6,7,8]){ const fe=feeders(n); R16m[n]=played(r16, fe[0], fe[1], r16[n-1]); }
+    const QF_R16={1:[1,2],2:[5,6],3:[3,4],4:[7,8]}, QFm={};
+    for(const j of [1,2,3,4]){ const [x,y]=QF_R16[j]; QFm[j]=played(qf, R16m[x], R16m[y], qf[j-1]); }
+    const SF_QF={1:[1,2],2:[3,4]}, SFm={};
+    for(const j of [1,2]){ const [x,y]=SF_QF[j]; SFm[j]=played(sf, QFm[x], QFm[y], sf[j-1]); }
     L32 = L16i.flatMap(feeders);    R32  = R16i.flatMap(feeders);
-    LQF = [qf[0],qf[1]];            RQF  = [qf[2],qf[3]];
-    LSF = [sf[0]];                  RSF  = [sf[1]];
+    L16 = L16i.map(n=>R16m[n]);     Rt16 = R16i.map(n=>R16m[n]);
+    LQF = [QFm[1],QFm[2]];          RQF  = [QFm[3],QFm[4]];
+    LSF = [SFm[1]];                 RSF  = [SFm[2]];
   } else {
     const half = a => { const n=Math.ceil(a.length/2); return [a.slice(0,n), a.slice(n)]; };
     [L32,R32]=half(r32); [L16,Rt16]=half(r16); [LQF,RQF]=half(qf); [LSF,RSF]=half(sf);
@@ -2407,7 +2420,7 @@ function predHtmlOf(p){
   const hN=p.home.name, aN=p.away.name, c=computePrediction(p, PRED_W);
   const seg = (cls,v) => `<span class="pb ${cls}" style="width:${v}%"></span>`;
   const slider = (label,k,step) => `<label class="pw"><span>${label}</span><input type="range" min="0" max="10" step="${step||1}" value="${PRED_W[k]}" oninput="setPredW('${k}',this.value)"><b class="pw-v">${PRED_W[k]}</b></label>`;
-  return `<div class="pred-head"><span>🔮 ${tr("appPredict")}</span><span class="pred-score">${tr("predScore")} <b>${c.scoreH} : ${c.scoreA}</b></span></div>
+  return `<div class="pred-head"><span>🔮 ${tr("appPredict")}</span><span class="pred-score">${tr("predScore")} <span class="ps-t">${hN}</span> <b>${c.scoreH} : ${c.scoreA}</b> <span class="ps-t">${aN}</span></span></div>
     <div class="pred-bar slim">${seg("h",c.home)}${seg("d",c.draw)}${seg("a",c.away)}</div>
     <div class="pred-row"><span class="lh">${hN} <b>${c.home}%</b></span><span class="ld">${tr("draw")} <b>${c.draw}%</b></span><span class="la">${aN} <b>${c.away}%</b></span></div>
     <div class="pred-factors">${predFactors(hN,p.home)}${predFactors(aN,p.away)}</div>
@@ -2932,6 +2945,7 @@ async function checkSubs(){
   // notify for ALL matches automatically (no subscription needed): kickoff, goals, full-time
   const data = await fetch("/api/matches",{cache:"no-store"}).then(r=>r.json()).catch(()=>null);
   if (!data) return;
+  let changed = false;                         // a goal / kickoff / FT this pass → sync the screen too
   data.matches.forEach(async m => {
     const cur = { st: m.status, h: m.score.home, a: m.score.away };
     const prev = subSnap[m.id];
@@ -2939,16 +2953,28 @@ async function checkSubs(){
     if (!prev) return;
     const label = `${m.home.name} ${cur.h??0} : ${cur.a??0} ${m.away.name}`;
     if (!LIVE_STATUS.includes(prev.st) && LIVE_STATUS.includes(cur.st)) {
+      changed = true;
       notify(tr("notifKickoff"), `${m.home.name} vs ${m.away.name}`);
     } else if (LIVE_STATUS.includes(cur.st) && (cur.h!==prev.h || cur.a!==prev.a)) {
+      changed = true;
       const side = (cur.h??0) > (prev.h??0) ? "home" : "away";
       const gi = await goalInfo(m.id, side);
       notify(gi.who ? tr("notifGoalBy",{who:gi.who}) : tr("notifGoal"), label, gi.photo);   // scorer photo as the toast image
     } else if (prev.st!=="FINISHED" && cur.st==="FINISHED") {
+      changed = true;
       notify(tr("notifFT"), label);
     }
   });
   setLiveTitle(data.matches.some(m => LIVE_STATUS.includes(m.status)));   // keep window/taskbar title in sync
+  // a goal/kickoff/FT just fired → update the on-screen scores immediately (don't wait for the 30s poll),
+  // using the data we already fetched. Covers Schedule cards, and re-renders Bracket if it's showing.
+  if (changed){
+    state.matches = data.matches;
+    if (state.view==="time") refreshLive();
+    else if (state.view==="bracket") renderBracket();
+    else if (state.view==="group") computeGroupTables();
+    updateBadge();
+  }
 }
 
 /* ---------- navigate to a match (from a team's schedule) ---------- */
