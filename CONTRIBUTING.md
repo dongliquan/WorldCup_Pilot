@@ -11,6 +11,9 @@ python -m venv .venv
 .venv\Scripts\python worldcup.py        # desktop window
 ```
 
+On macOS use `python3 -m venv .venv`, `.venv/bin/pip` and `.venv/bin/python`, and build with `./build_mac.sh`.
+Platform-specific code (notifications, taskbar badge, icons) belongs in `worldcup.py` behind `sys.platform` checks.
+
 ## Before you open a pull request
 
 ```bash
