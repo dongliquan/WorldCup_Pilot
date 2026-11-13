@@ -241,7 +241,7 @@ class Api:
         """Local file path for the toast image. Remote http(s) URLs (e.g. a scorer's
         photo) are downloaded first — WinRT unpackaged toasts can't load web images.
         Falls back to the bundled app icon."""
-        default = os.path.join(app_root(), "assets", "logo.png")   # app/World Cup logo
+        default = os.path.join(app_root(), "assets", "icon.png")   # the app icon
         if not image:
             return default
         if image.startswith("file:///"):

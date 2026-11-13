@@ -8,7 +8,7 @@ assets/ — 정적 데이터 + 아이콘 (모두 편집 가능, 재시작 시 �
   wc_editions.json           역대 대회(개최국·우승/준우승·MVP·골든부트)
 
 아이콘 / 로고
-  logo.png                   헤더 엠블럼 (현재 대회)
+  (헤더 엠블럼은 icon.png 를 기본으로 쓰고, 회차별 엠블럼은 실행 중 Wikipedia 에서 받음)
   icon.png / icon_1024.png   앱 아이콘(소스 이미지)
   icon.ico / live_dot.ico    Windows 실행 파일 아이콘
   icon.html                  아이콘 생성용 미리보기(빌드와 무관)

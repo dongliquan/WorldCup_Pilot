@@ -1,0 +1,11 @@
+# one line ending in the repo (Windows and macOS checkouts): LF
+* text=auto eol=lf
+
+# Windows batch files only run with CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# binaries
+*.png binary
+*.ico binary
+*.icns binary

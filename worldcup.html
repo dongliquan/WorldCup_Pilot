@@ -1108,7 +1108,7 @@
 
   <header>
     <div class="brand">
-      <span class="emblem"><img id="edEmblem" src="/assets/logo.png" alt="FIFA World Cup" /></span>
+      <span class="emblem"><img id="edEmblem" src="/assets/icon.png" alt="FIFA World Cup" /></span>
       <div class="wordmark">
         <span class="k">FIFA</span>
         <span class="t">WORLD CUP <span class="yr" id="seasonYr">2026</span></span>
@@ -1142,7 +1142,7 @@
     <div class="nav" onclick="scrollDates(1)">›</div>
   </div>
 
-  <main id="main"><div class="empty"><img class="ld-logo-big" src="/assets/logo.png">Loading…</div></main>
+  <main id="main"><div class="empty"><img class="ld-logo-big" src="/assets/icon.png">Loading…</div></main>
 
   <!-- team detail popup -->
   <div class="overlay" id="overlay" onclick="if(event.target===this) closeTeam()">
@@ -1171,7 +1171,7 @@ const POS_I18N = {
 let LANG = localStorage.getItem("wc_lang") || "en";
 const LOCALES = { en:"en-US", ko:"ko-KR", zh:"zh-CN", ja:"ja-JP" };
 const dloc = () => LOCALES[LANG] || "en-US";
-const edLogo = () => { const e = document.getElementById("edEmblem"); return (e && e.src) || "/assets/logo.png"; };
+const edLogo = () => { const e = document.getElementById("edEmblem"); return (e && e.src) || "/assets/icon.png"; };
 // route remote photos through the local image cache (download once, served from disk)
 const imgUrl = u => (u && /^https?:/.test(u)) ? "/img?u="+encodeURIComponent(u) : (u||"");
 const I18N = {
@@ -1393,9 +1393,9 @@ async function changeEdition(year){
   // edition emblem (logo): 2026 official asset, past = Wikipedia
   const em = document.getElementById("edEmblem");
   if (em){
-    if (ed.current) em.src = "/assets/logo.png";
+    if (ed.current) em.src = "/assets/icon.png";
     else fetch("/api/wiki-image?title="+encodeURIComponent(year+" FIFA World Cup")).then(r=>r.json())
-           .then(d=>{ em.src = d.image || "/assets/logo.png"; }).catch(()=>{ em.src="/assets/logo.png"; });
+           .then(d=>{ em.src = d.image || "/assets/icon.png"; }).catch(()=>{ em.src="/assets/icon.png"; });
   }
   state.groups = [];   // standings are per-edition
   document.getElementById("tzToggle").style.display = ed.current ? "flex" : "none";  // venue tz only for 2026

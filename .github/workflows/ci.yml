@@ -1,0 +1,25 @@
+# Checks on every push and pull request: the Python files compile, and the prediction math agrees across the UI,
+# the server and the tuning scripts (test_model_consistency.py). No network and no secrets needed.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest # the app is Windows-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # each step goes through ci-step.sh so a failure shows its error lines on the run's summary page
+      - run: bash .github/ci-step.sh "compile" python -m py_compile server.py worldcup.py backtest.py learn.py
+        shell: bash
+      - run: bash .github/ci-step.sh "model consistency test" python test_model_consistency.py
+        shell: bash

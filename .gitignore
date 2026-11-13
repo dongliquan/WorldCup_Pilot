@@ -11,14 +11,12 @@ config.json
 scratch_*.json
 korea_r32_telemetry.html
 
-# Keep the stable cached data in git (country/player/past-match info, AI picks, tuned model,
-# and the finished-match computations: model picks, accuracy, 3rd-place odds, advancement race)
-# so a fresh clone / the .exe loads them instantly instead of recomputing. Only skip the big
-# auto-refetchable blobs (patterns must stand alone — no inline comments):
-#   img/         ~230MB photos (re-downloaded on demand)
-#   espn-sum-*   ~120MB raw summaries (re-fetched; finished ones also in match-final-*)
-dist/cache/img/
-dist/cache/espn-sum-*.json
+# Third-party data responses (ESPN, TheSportsDB, ...) and photos are fetched on first run and are NOT committed:
+# redistributing them may break those services' terms. The app rebuilds them in the runtime cache.
+dist/cache/
+
+# The FIFA World Cup emblem is a FIFA trademark: keep a local copy if you like, but never commit it
+assets/logo.png
 
 # source-run cache (python server.py) — root only, not dist/cache
 /cache/

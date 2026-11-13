@@ -32,9 +32,7 @@
    - ⚠️ `scoreboard?dates=YYYY`에는 **`&limit=300` 필수**. 기본 100이라 2026 WC 104경기 중 마지막 4경기
      (준결승·3·4위전·결승)가 조용히 잘린다.
 
-5. **확정 데이터는 `dist/cache/`에 커밋.** 신규 클론/exe가 네트워크 없이도 즉시 뜨고, 외부 소스가
-   잘리거나 죽어도 안전망이 된다. 일정 골격(`espn-year-*.json`), 파생 계산(advtrend/advodds/accuracy),
-   AI 픽(aipick/modelpick)은 커밋 대상. 큰 재취득 가능 blob(`img/`, `espn-sum-*`)은 gitignore.
+5. **외부 데이터 응답은 커밋하지 않는다.** `dist/cache/`(ESPN·TheSportsDB 등 응답, 사진)는 gitignore — 공개 저장소에 재배포하면 외부 서비스 약관에 걸릴 수 있다. 첫 실행 때 내려받아 런타임 캐시(`cache/`)에 쌓고, 확정 데이터는 거기서 영구 캐시한다. 커밋하는 것은 자체 계산(`dist/model_params.json`, `dist/tune_state.json`)뿐.
 
 **안티패턴**: 모든 호출에 똑같은 60초 TTL 박기 / 끝난 경기를 매번 다시 fetch / 화면 열 때마다 summary
 재요청 / 경기마다 개별 API 호출 / 확정 데이터를 캐시 안 하고 항상 라이브로.
@@ -43,8 +41,7 @@
 
 ## 캐시 구조
 
-- 런타임 캐시: `cache/`(gitignore). 커밋 데이터셋: `dist/cache/`. exe는 `dist/cache`를 읽고,
-  `seed_cache()`가 커밋된 파생 캐시(aipick/modelpick/advtrend/advodds/accuracy)를 런타임 캐시에 시드.
+- 런타임 캐시: `cache/`(gitignore). 로컬에 `dist/cache/`가 있으면(gitignore) exe가 읽고, `seed_cache()`가 그 안의 파생 캐시(aipick/modelpick/advtrend/advodds/accuracy)를 런타임 캐시에 시드.
 - 2계층 TTL: 짧은 ttl(라이브) + 영구(완료/파생). 시그니처 키 재계산
   (`_group_stage_signature`는 조별 결과만 → 녹아웃 진행 중에도 안정).
 - 원자적 쓰기(`_write_cache`: temp + `os.replace`), 요청 단위 메모이즈(`_req_memo`).
