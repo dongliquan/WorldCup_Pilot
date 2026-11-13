@@ -2,7 +2,7 @@
 
 # World Cup Pilot
 
-**自带预测引擎的 FIFA 世界杯桌面查看器。** 使用免费公开数据源展示赛程、结果、积分榜、对阵、球员和视频，并提供 **Elo × Score 预测**、**AI 预测**和**预测准确率对比**。可按届次浏览**历届世界杯（1930–2026）**。仅支持 Windows。
+**自带预测引擎的 FIFA 世界杯桌面查看器。** 使用免费公开数据源展示赛程、结果、积分榜、对阵、球员和视频，并提供 **Elo × Score 预测**、**AI 预测**和**预测准确率对比**。可按届次浏览**历届世界杯（1930–2026）**。支持 Windows 和 macOS。
 
 > **非官方粉丝项目。** 与 FIFA、ESPN 及任何数据提供方均无隶属、赞助或关联。“FIFA”和“World Cup”的权利归各自所有者。本仓库不包含任何第三方数据、照片或标志：所有内容都在你自己的电脑上首次运行时下载。仅供个人使用，不用于商业发布。
 
@@ -17,13 +17,13 @@
 | **预测成绩** | 用真实结果给四种预测打分：Elo × Score、DraftKings 赔率、Groq、ChatGPT |
 | **阵容** | 官方名单公布前显示预测首发，公布后显示真实首发与阵型 |
 | **历届赛事** | 选择任一届，球员、年龄和排名都按当时的情况显示 |
-| **界面** | 深色/浅色主题、4 种语言、桌面通知、任务栏 LIVE 徽标 |
+| **界面** | 深色/浅色主题、4 种语言、桌面通知、LIVE 徽标（Windows 为任务栏） |
 
 ## 工作原理
 
 ```mermaid
 flowchart LR
-  W["原生窗口<br/>(pywebview · WebView2)"] <-->|HTTP| S["本地服务器<br/>127.0.0.1:8770"]
+  W["原生窗口<br/>(pywebview · WebView2 / WebKit)"] <-->|HTTP| S["本地服务器<br/>127.0.0.1:8770"]
   S <--> C[("磁盘缓存")]
   S --> E["ESPN<br/>赛程 · 比分 · 球员名单"]
   S --> T["TheSportsDB · Wikipedia<br/>照片 · 俱乐部"]
@@ -64,19 +64,42 @@ flowchart LR
 
 ## 下载
 
-请从 **[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)** 下载 `WorldCupPilot.exe`。需要 Windows 10 或 11 以及 Edge WebView2 运行时。
+请从 **[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)** 下载适合你系统的版本。
 
-exe 未做代码签名，所以 Windows SmartScreen 会弹出警告：点击**更多信息 → 仍要运行**。首次启动需要下载所需数据，速度较慢，之后会很快。
+| 系统 | 文件 | 要求 |
+|---|---|---|
+| Windows 10 / 11 | `WorldCupPilot.exe` | Edge WebView2 运行时 |
+| macOS，Apple Silicon | `WorldCupPilot-mac-arm64.dmg` | macOS 11 或更高 |
+| macOS，Intel | `WorldCupPilot-mac-x86_64.dmg` | macOS 11 或更高 |
+
+目前尚未做代码签名，首次启动会出现警告：
+
+- **Windows：** SmartScreen 提示“Windows 已保护你的电脑”，点击**更多信息 → 仍要运行**。
+- **macOS：** 把应用拖到“应用程序”，右键点击并选择**打开**，再点一次**打开**；或运行 `xattr -dr com.apple.quarantine "/Applications/World Cup Pilot.app"`。
+
+首次启动需要下载所需数据，速度较慢，之后会很快。
 
 ## 从源码运行
+
+**Windows**
 
 ```bash
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python worldcup.py        # 桌面窗口
-python server.py                        # 仅服务器：http://127.0.0.1:8770
+.venv\Scripts\python worldcup.py          # 桌面窗口
 pyinstaller --noconfirm worldcup_win.spec   # 构建 dist\WorldCupPilot.exe
 ```
+
+**macOS**
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python worldcup.py                # 桌面窗口
+./build_mac.sh                              # 构建 dist/World Cup Pilot.app 和 .dmg
+```
+
+两个系统上都可以只运行服务器：`python server.py` → http://127.0.0.1:8770
 
 ## 设置（`config.json`）
 
@@ -107,10 +130,12 @@ pyinstaller --noconfirm worldcup_win.spec   # 构建 dist\WorldCupPilot.exe
 | `assets/` | 静态数据（排名、国家信息、球场、赛事信息）和应用图标 |
 | `test_model_consistency.py` | 检查界面、服务器与调优脚本中的预测公式是否一致 |
 | `worldcup_win.spec` | 构建 Windows 单文件 exe 的 PyInstaller 配置 |
+| `worldcup_mac.spec`, `build_mac.sh` | 构建 macOS `.app` 和 `.dmg` |
 
 ## 已知限制
 
-- 仅支持 Windows，exe 未签名。
+- 仅支持 Windows 和 macOS，构建未做代码签名。
+- macOS 没有任务栏徽标，由应用内的 LIVE 标记显示正在进行的比赛。
 - 免费数据源有调用限额（尤其是 TheSportsDB），照片会逐步补全。
 - 数据来自非官方的公开接口，可能在没有通知的情况下变化或消失。
 

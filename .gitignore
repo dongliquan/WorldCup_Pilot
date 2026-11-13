@@ -24,3 +24,9 @@ assets/logo.png
 # atomic-write temp files
 *.tmp
 dist/cache/*.tmp
+
+# macOS build outputs
+icon.icns
+dist/World Cup Pilot/
+dist/*.app/
+dist/*.dmg

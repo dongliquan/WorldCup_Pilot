@@ -1,6 +1,6 @@
-# Release build: push a tag like v1.0.0 and the single-file Windows exe is built on GitHub's runner and attached to a
-# DRAFT GitHub Release (nothing is public until you press "Publish release").
-# The exe is unsigned. To sign it later, add a code-signing step before the upload.
+# Release build: push a tag like v1.1.0 and the Windows exe plus the macOS dmg files (Apple Silicon and Intel) are
+# built on GitHub's runners and attached to a DRAFT GitHub Release (nothing is public until you press
+# "Publish release"). The builds are unsigned. To sign them later, add code-signing / notarization steps.
 name: release
 
 on:
@@ -13,7 +13,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+          - os: macos-latest # Apple Silicon
+            name: mac-arm64
+          - os: macos-15-intel # Intel
+            name: mac-x86_64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,15 +33,30 @@ jobs:
         shell: bash
       - run: bash .github/ci-step.sh "model consistency test" python test_model_consistency.py
         shell: bash
-      - run: bash .github/ci-step.sh "pyinstaller" python -m PyInstaller --noconfirm worldcup_win.spec
+      - if: runner.os == 'Windows'
+        run: bash .github/ci-step.sh "pyinstaller" python -m PyInstaller --noconfirm worldcup_win.spec
+        shell: bash
+      - if: runner.os == 'macOS'
+        run: bash .github/ci-step.sh "macOS build" bash build_mac.sh
         shell: bash
       - uses: actions/upload-artifact@v4
         with:
-          name: WorldCupPilot-windows
-          path: dist/WorldCupPilot.exe
+          name: WorldCupPilot-${{ matrix.name }}
+          path: |
+            dist/WorldCupPilot.exe
+            dist/WorldCupPilot-mac-*.dmg
           if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           draft: true
-          files: dist/WorldCupPilot.exe
+          files: artifacts/*

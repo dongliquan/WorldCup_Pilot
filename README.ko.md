@@ -2,7 +2,7 @@
 
 # World Cup Pilot
 
-**자체 예측 엔진이 있는 FIFA 월드컵 데스크톱 뷰어.** 무료 공개 소스로 일정·결과·순위·대진·선수·영상을 보여 주고, **Elo × Score 예측**, **AI 예측**, **예측 정확도 비교**까지 제공합니다. **역대 월드컵(1930~2026)** 을 회차별로 볼 수 있습니다. Windows 전용.
+**자체 예측 엔진이 있는 FIFA 월드컵 데스크톱 뷰어.** 무료 공개 소스로 일정·결과·순위·대진·선수·영상을 보여 주고, **Elo × Score 예측**, **AI 예측**, **예측 정확도 비교**까지 제공합니다. **역대 월드컵(1930~2026)** 을 회차별로 볼 수 있습니다. Windows와 macOS 지원.
 
 > **비공식 팬 프로젝트입니다.** FIFA, ESPN 및 어떤 데이터 제공처와도 제휴·후원·연관이 없습니다. "FIFA"와 "World Cup"의 권리는 각 소유자에게 있습니다. 이 저장소에는 외부 데이터·사진·로고가 들어 있지 않고, 모두 내 PC에서 처음 실행할 때 내려받습니다. 개인용이며 상용 배포용이 아닙니다.
 
@@ -17,13 +17,13 @@
 | **예측성적** | Elo × Score · DraftKings 배당 · Groq · ChatGPT 4개 예측기를 실제 결과로 채점 |
 | **라인업** | 공시 전 예상 XI, 공시 후 실제 XI와 포메이션 |
 | **역대 대회** | 회차를 고르면 당시 선수·나이·랭킹·결과 기준으로 표시 |
-| **UI** | 다크/라이트, 4개 국어, 데스크톱 알림, 작업표시줄 LIVE 뱃지 |
+| **UI** | 다크/라이트, 4개 국어, 데스크톱 알림, LIVE 뱃지(Windows는 작업표시줄) |
 
 ## 동작 방식
 
 ```mermaid
 flowchart LR
-  W["네이티브 창<br/>(pywebview · WebView2)"] <-->|HTTP| S["로컬 서버<br/>127.0.0.1:8770"]
+  W["네이티브 창<br/>(pywebview · WebView2 / WebKit)"] <-->|HTTP| S["로컬 서버<br/>127.0.0.1:8770"]
   S <--> C[("디스크 캐시")]
   S --> E["ESPN<br/>일정 · 스코어 · 선수단"]
   S --> T["TheSportsDB · Wikipedia<br/>사진 · 소속팀"]
@@ -64,19 +64,42 @@ flowchart LR
 
 ## 다운로드
 
-**[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)** 에서 `WorldCupPilot.exe` 를 받으세요. Windows 10/11과 Edge WebView2 런타임이 필요합니다.
+**[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)** 에서 내 시스템에 맞는 파일을 받으세요.
 
-exe는 코드 서명이 없어 Windows SmartScreen 경고가 뜹니다. **추가 정보 → 실행** 을 누르세요. 처음 실행할 때는 필요한 데이터를 내려받아 느리고, 이후에는 빠릅니다.
+| 시스템 | 파일 | 필요한 것 |
+|---|---|---|
+| Windows 10 / 11 | `WorldCupPilot.exe` | Edge WebView2 런타임 |
+| macOS, Apple Silicon | `WorldCupPilot-mac-arm64.dmg` | macOS 11 이상 |
+| macOS, Intel | `WorldCupPilot-mac-x86_64.dmg` | macOS 11 이상 |
+
+아직 코드 서명이 없어서 처음 실행할 때 경고가 뜹니다.
+
+- **Windows:** SmartScreen이 "Windows의 PC 보호"를 띄웁니다. **추가 정보 → 실행**을 누르세요.
+- **macOS:** 앱을 Applications로 옮긴 뒤 우클릭해 **열기**를 선택하고 한 번 더 **열기**를 누르세요. 또는 `xattr -dr com.apple.quarantine "/Applications/World Cup Pilot.app"` 를 실행하세요.
+
+처음 실행할 때는 필요한 데이터를 내려받아 느리고, 이후에는 빠릅니다.
 
 ## 소스로 실행
+
+**Windows**
 
 ```bash
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python worldcup.py        # 데스크톱 창
-python server.py                        # 서버만: http://127.0.0.1:8770
+.venv\Scripts\python worldcup.py          # 데스크톱 창
 pyinstaller --noconfirm worldcup_win.spec   # dist\WorldCupPilot.exe 빌드
 ```
+
+**macOS**
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python worldcup.py                # 데스크톱 창
+./build_mac.sh                              # dist/World Cup Pilot.app 과 .dmg 빌드
+```
+
+어느 시스템에서든 서버만: `python server.py` → http://127.0.0.1:8770
 
 ## 설정 (`config.json`)
 
@@ -107,10 +130,12 @@ pyinstaller --noconfirm worldcup_win.spec   # dist\WorldCupPilot.exe 빌드
 | `assets/` | 정적 데이터(랭킹, 국가 정보, 경기장, 대회 정보)와 앱 아이콘 |
 | `test_model_consistency.py` | UI·서버·튜닝 스크립트의 예측 수식이 일치하는지 검사 |
 | `worldcup_win.spec` | Windows 단일 exe용 PyInstaller 빌드 |
+| `worldcup_mac.spec`, `build_mac.sh` | macOS `.app` / `.dmg` 빌드 |
 
 ## 알려진 한계
 
-- Windows 전용이며 exe는 서명이 없습니다.
+- Windows와 macOS만 지원하며 빌드에는 코드 서명이 없습니다.
+- macOS에는 작업표시줄 뱃지가 없어서, 앱 안의 LIVE 표시로 라이브 경기를 알려 줍니다.
 - 무료 소스에는 호출 한도가 있어(특히 TheSportsDB) 사진이 점차 채워집니다.
 - 데이터는 비공식 공개 엔드포인트에서 오므로 예고 없이 바뀌거나 사라질 수 있습니다.
 

@@ -2,7 +2,7 @@
 
 # World Cup Pilot
 
-**A desktop FIFA World Cup viewer with its own prediction engine.** Schedule, results, standings, brackets, players and videos from free public sources, plus **Elo × Score predictions**, **AI predictions** and a **prediction accuracy board**. Every past World Cup (1930–2026) can be browsed by edition. Windows only.
+**A desktop FIFA World Cup viewer with its own prediction engine.** Schedule, results, standings, brackets, players and videos from free public sources, plus **Elo × Score predictions**, **AI predictions** and a **prediction accuracy board**. Every past World Cup (1930–2026) can be browsed by edition. Windows and macOS.
 
 > **Unofficial fan project.** It is not affiliated with, endorsed by or connected to FIFA, ESPN or any data provider. "FIFA" and "World Cup" belong to their owners. This repository contains no third-party data, photos or logos: everything is downloaded on your own PC at first run. For personal use, not for commercial distribution.
 
@@ -17,13 +17,13 @@
 | **Accuracy** | Grades four predictors against real results: Elo × Score, DraftKings odds, Groq, ChatGPT |
 | **Lineups** | Predicted XI before the official list, the real XI and formation after it |
 | **History** | Pick any past World Cup; players, ages and rankings are shown as they were then |
-| **UI** | Dark and light themes, 4 languages, desktop notifications, taskbar LIVE badge |
+| **UI** | Dark and light themes, 4 languages, desktop notifications, LIVE badge (taskbar on Windows) |
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  W["Native window<br/>(pywebview · WebView2)"] <-->|HTTP| S["Local server<br/>127.0.0.1:8770"]
+  W["Native window<br/>(pywebview · WebView2 / WebKit)"] <-->|HTTP| S["Local server<br/>127.0.0.1:8770"]
   S <--> C[("Disk cache")]
   S --> E["ESPN<br/>schedule · scores · rosters"]
   S --> T["TheSportsDB · Wikipedia<br/>photos · clubs"]
@@ -64,19 +64,42 @@ Uses only information available before kickoff. The weights can be adjusted with
 
 ## Download
 
-Get `WorldCupPilot.exe` from **[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)**. It needs Windows 10 or 11 with the Edge WebView2 runtime.
+Get the build for your system from **[Releases](https://github.com/dongliquan/WorldCup_Pilot/releases/latest)**.
 
-The exe is not code-signed, so Windows SmartScreen shows a warning: click **More info → Run anyway**. The first launch downloads the data it needs and is slower; later launches are fast.
+| System | File | Needs |
+|---|---|---|
+| Windows 10 / 11 | `WorldCupPilot.exe` | Edge WebView2 runtime |
+| macOS, Apple Silicon | `WorldCupPilot-mac-arm64.dmg` | macOS 11 or later |
+| macOS, Intel | `WorldCupPilot-mac-x86_64.dmg` | macOS 11 or later |
+
+The builds are not code-signed, so the first launch shows a warning:
+
+- **Windows:** SmartScreen says "Windows protected your PC". Click **More info → Run anyway**.
+- **macOS:** Drag the app to Applications, then right-click it, choose **Open**, and **Open** again. Or run `xattr -dr com.apple.quarantine "/Applications/World Cup Pilot.app"`.
+
+The first launch downloads the data it needs and is slower; later launches are fast.
 
 ## Run from source
+
+**Windows**
 
 ```bash
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python worldcup.py        # the desktop window
-python server.py                        # the server only: http://127.0.0.1:8770
+.venv\Scripts\python worldcup.py          # the desktop window
 pyinstaller --noconfirm worldcup_win.spec   # build dist\WorldCupPilot.exe
 ```
+
+**macOS**
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python worldcup.py                # the desktop window
+./build_mac.sh                              # build dist/World Cup Pilot.app and a .dmg
+```
+
+The server alone, on either system: `python server.py` → http://127.0.0.1:8770
 
 ## Settings (`config.json`)
 
@@ -107,10 +130,12 @@ Restart the app after changing keys.
 | `assets/` | Static data (rankings, country info, venues, editions) and the app icon |
 | `test_model_consistency.py` | Checks the prediction math agrees across the UI, server and tuning scripts |
 | `worldcup_win.spec` | PyInstaller build for the single Windows exe |
+| `worldcup_mac.spec`, `build_mac.sh` | macOS `.app` and `.dmg` build |
 
 ## Known limits
 
-- Windows only. The exe is unsigned.
+- Windows and macOS only. The builds are unsigned.
+- macOS has no taskbar badge; the in-app LIVE badge shows live matches.
 - The free sources have rate limits (TheSportsDB especially), so photos fill in gradually.
 - Data comes from unofficial public endpoints that can change or disappear without notice.
 

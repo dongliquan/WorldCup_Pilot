@@ -1,5 +1,6 @@
-# Checks on every push and pull request: the Python files compile, and the prediction math agrees across the UI,
-# the server and the tuning scripts (test_model_consistency.py). No network and no secrets needed.
+# Checks on every push and pull request, on Windows and macOS: the Python files compile, and the prediction math
+# agrees across the UI, the server and the tuning scripts (test_model_consistency.py). On macOS it also builds the
+# .app and .dmg, so a broken Mac build shows up here instead of at release time. No secrets needed.
 name: ci
 
 on:
@@ -12,7 +13,11 @@ permissions:
 
 jobs:
   check:
-    runs-on: windows-latest # the app is Windows-only
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,4 +27,7 @@ jobs:
       - run: bash .github/ci-step.sh "compile" python -m py_compile server.py worldcup.py backtest.py learn.py
         shell: bash
       - run: bash .github/ci-step.sh "model consistency test" python test_model_consistency.py
+        shell: bash
+      - if: runner.os == 'macOS'
+        run: bash .github/ci-step.sh "macOS build" bash build_mac.sh
         shell: bash

@@ -1,18 +1,24 @@
 """
-World Cup Pilot — Windows 11 desktop launcher.
+World Cup Pilot — desktop launcher for Windows and macOS.
 
-Runs the local HTTP server (server.py) in a background thread and opens a
-native WebView2 (Edge) window pointing at the single-page UI. All data comes
-from ESPN (no API token required). Local / personal use only.
+Runs the local HTTP server (server.py) in a background thread and opens a native
+window pointing at the single-page UI: WebView2 (Edge) on Windows, WebKit on macOS.
+All data comes from free public sources (ESPN, no API token required). Personal use only.
+
+Platform differences live here and nowhere else:
+  - desktop notifications: a WinRT toast through PowerShell (Windows), osascript (macOS)
+  - the blinking LIVE badge on the taskbar button (Windows only; macOS has no taskbar overlay)
+  - the app icon (Windows: from the .exe; macOS: set on the Dock at run time, and from the .app bundle)
+  - where config.json / cache live (next to the .exe, or next to the .app)
 
 Dev run:
-    pip install pywebview pyinstaller
+    pip install -r requirements.txt
     python worldcup.py
 
-Build a single-file .exe (see worldcup_win.spec):
-    pyinstaller --noconfirm worldcup_win.spec
+Build (see worldcup_win.spec / worldcup_mac.spec / build_mac.sh):
+    pyinstaller --noconfirm worldcup_win.spec      # Windows -> dist/WorldCupPilot.exe
+    ./build_mac.sh                                 # macOS   -> dist/World Cup Pilot.app
 """
-import ctypes
 import json
 import os
 import subprocess
@@ -21,89 +27,96 @@ import threading
 import time
 import urllib.request
 import webbrowser
-from ctypes import byref, c_void_p, wintypes
 
 import webview
+
+IS_WIN = sys.platform == "win32"
+IS_MAC = sys.platform == "darwin"
+
+if IS_WIN:
+    import ctypes
+    from ctypes import byref, c_void_p, wintypes
 
 
 # ---- Windows taskbar overlay icon (ITaskbarList3) ---------------------------
 # Puts a small red "LIVE" badge on the taskbar button when a match is live.
-class _GUID(ctypes.Structure):
-    _fields_ = [("Data1", ctypes.c_ulong), ("Data2", ctypes.c_ushort),
-                ("Data3", ctypes.c_ushort), ("Data4", ctypes.c_ubyte * 8)]
-
-
-def _guid(s):
-    g = _GUID()
-    ctypes.windll.ole32.CLSIDFromString(ctypes.c_wchar_p(s), byref(g))
-    return g
-
-
-_CLSID_TaskbarList = "{56FDF344-FD6D-11D0-958A-006097C9A090}"
-_IID_ITaskbarList3 = "{EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF}"
 _taskbar_state = {"on": None}
 
+if IS_WIN:
+    class _GUID(ctypes.Structure):
+        _fields_ = [("Data1", ctypes.c_ulong), ("Data2", ctypes.c_ushort),
+                    ("Data3", ctypes.c_ushort), ("Data4", ctypes.c_ubyte * 8)]
 
-def _find_main_hwnd():
-    """Top-level visible window whose title contains 'World Cup'."""
-    found = []
+    def _guid(s):
+        g = _GUID()
+        ctypes.windll.ole32.CLSIDFromString(ctypes.c_wchar_p(s), byref(g))
+        return g
 
-    @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
-    def _cb(hwnd, _):
-        if ctypes.windll.user32.IsWindowVisible(hwnd):
-            n = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
-            if n:
-                buf = ctypes.create_unicode_buffer(n + 1)
-                ctypes.windll.user32.GetWindowTextW(hwnd, buf, n + 1)
-                if "World Cup" in buf.value:
-                    found.append(hwnd)
-        return True
+    _CLSID_TaskbarList = "{56FDF344-FD6D-11D0-958A-006097C9A090}"
+    _IID_ITaskbarList3 = "{EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF}"
 
-    ctypes.windll.user32.EnumWindows(_cb, 0)
-    return found[0] if found else None
+    def _find_main_hwnd():
+        """Top-level visible window whose title contains 'World Cup'."""
+        found = []
 
+        @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        def _cb(hwnd, _):
+            if ctypes.windll.user32.IsWindowVisible(hwnd):
+                n = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+                if n:
+                    buf = ctypes.create_unicode_buffer(n + 1)
+                    ctypes.windll.user32.GetWindowTextW(hwnd, buf, n + 1)
+                    if "World Cup" in buf.value:
+                        found.append(hwnd)
+            return True
 
-def _vtbl_call(ptr, index, *args):
-    vtbl = ctypes.cast(ptr, ctypes.POINTER(c_void_p))[0]
-    fn = ctypes.cast(vtbl, ctypes.POINTER(c_void_p))[index]
-    proto = ctypes.WINFUNCTYPE(ctypes.c_long, c_void_p, *[type(a) for a in args])
-    return proto(fn)(ptr, *args)
+        ctypes.windll.user32.EnumWindows(_cb, 0)
+        return found[0] if found else None
 
+    def _vtbl_call(ptr, index, *args):
+        vtbl = ctypes.cast(ptr, ctypes.POINTER(c_void_p))[0]
+        fn = ctypes.cast(vtbl, ctypes.POINTER(c_void_p))[index]
+        proto = ctypes.WINFUNCTYPE(ctypes.c_long, c_void_p, *[type(a) for a in args])
+        return proto(fn)(ptr, *args)
 
-def set_taskbar_overlay(on):
-    """Set (on=True) or clear the taskbar overlay icon. Best-effort; silent on failure."""
-    if _taskbar_state["on"] == on:
-        return
-    try:
-        ctypes.windll.ole32.CoInitialize(None)
-        hwnd = _find_main_hwnd()
-        if not hwnd:
-            return
-        pptr = c_void_p()
-        if ctypes.windll.ole32.CoCreateInstance(
-                byref(_guid(_CLSID_TaskbarList)), None, 1,
-                byref(_guid(_IID_ITaskbarList3)), byref(pptr)) != 0 or not pptr.value:
+    def set_taskbar_overlay(on):
+        """Set (on=True) or clear the taskbar overlay icon. Best-effort; silent on failure."""
+        if _taskbar_state["on"] == on:
             return
         try:
-            _vtbl_call(pptr, 3)   # HrInit()
-            hicon = 0
-            desc = None
-            if on:
-                ico = os.path.join(app_root(), "assets", "live_dot.ico")
-                hicon = ctypes.windll.user32.LoadImageW(
-                    None, ctypes.c_wchar_p(ico), 1, 0, 0, 0x00000010 | 0x00000040)  # IMAGE_ICON | LR_LOADFROMFILE | LR_DEFAULTSIZE
-                desc = ctypes.c_wchar_p("LIVE")
-            # SetOverlayIcon(hwnd, hicon, desc) — vtable index 18
-            _vtbl_call(pptr, 18, wintypes.HWND(hwnd), wintypes.HANDLE(hicon),
-                       desc if desc else ctypes.c_wchar_p(None))
-            _taskbar_state["on"] = on
-        finally:
-            _vtbl_call(pptr, 2)   # Release()
-    except Exception as e:
-        print(f"[warn] taskbar overlay: {e}")
+            ctypes.windll.ole32.CoInitialize(None)
+            hwnd = _find_main_hwnd()
+            if not hwnd:
+                return
+            pptr = c_void_p()
+            if ctypes.windll.ole32.CoCreateInstance(
+                    byref(_guid(_CLSID_TaskbarList)), None, 1,
+                    byref(_guid(_IID_ITaskbarList3)), byref(pptr)) != 0 or not pptr.value:
+                return
+            try:
+                _vtbl_call(pptr, 3)   # HrInit()
+                hicon = 0
+                desc = None
+                if on:
+                    ico = os.path.join(app_root(), "assets", "live_dot.ico")
+                    hicon = ctypes.windll.user32.LoadImageW(
+                        None, ctypes.c_wchar_p(ico), 1, 0, 0, 0x00000010 | 0x00000040)  # IMAGE_ICON | LR_LOADFROMFILE | LR_DEFAULTSIZE
+                    desc = ctypes.c_wchar_p("LIVE")
+                # SetOverlayIcon(hwnd, hicon, desc) — vtable index 18
+                _vtbl_call(pptr, 18, wintypes.HWND(hwnd), wintypes.HANDLE(hicon),
+                           desc if desc else ctypes.c_wchar_p(None))
+                _taskbar_state["on"] = on
+            finally:
+                _vtbl_call(pptr, 2)   # Release()
+        except Exception as e:
+            print(f"[warn] taskbar overlay: {e}")
+else:
+    def set_taskbar_overlay(on):
+        """No taskbar overlay outside Windows; the in-page LIVE badge shows the live state."""
+        return
 
 
-# ---- blinking 🔴 LIVE window title ------------------------------------------
+# ---- blinking 🔴 LIVE window title (Windows) --------------------------------
 _TITLE_PLAIN = "World Cup"
 _TITLE_ON = "🔴 LIVE · World Cup"
 _TITLE_OFF = "       LIVE · World Cup"   # red dot hidden → blink effect
@@ -156,8 +169,13 @@ def app_root():
 
 
 def writable_root():
-    """Where config.json / cache / logs live (next to the .exe when bundled)."""
+    """Where config.json / cache / logs live: next to the .exe (Windows) or next to the .app (macOS)."""
     if getattr(sys, "frozen", False):
+        if IS_MAC:
+            p = sys.executable
+            while p and not p.endswith(".app") and os.path.dirname(p) != p:
+                p = os.path.dirname(p)
+            return os.path.dirname(p) if p.endswith(".app") else os.path.dirname(sys.executable)
         return os.path.dirname(sys.executable)   # single-file .exe → its folder
     return os.path.dirname(os.path.abspath(__file__))
 
@@ -199,10 +217,19 @@ def wait_until_ready(timeout=8.0):
 
 
 def set_app_icon():
-    """Windows: the taskbar/window icon comes from the .exe icon (icon.ico, set in
-    the PyInstaller spec), so nothing to do at runtime. Kept as the webview.start
-    callback for cross-platform parity."""
-    return
+    """Windows: the taskbar/window icon comes from the .exe icon (icon.ico, set in the PyInstaller
+    spec), so there is nothing to do at run time. macOS: a dev run shows Python's default Dock icon
+    (the built .app carries icon.icns), so set the Dock icon from the app's own icon image."""
+    if not IS_MAC:
+        return
+    try:
+        from AppKit import NSApplication, NSImage
+        p = os.path.join(app_root(), "assets", "icon.png")
+        if os.path.exists(p):
+            img = NSImage.alloc().initByReferencingFile_(p)
+            NSApplication.sharedApplication().setApplicationIconImage_(img)
+    except Exception as e:
+        print(f"[warn] could not set dock icon: {e}")
 
 
 class Api:
@@ -238,7 +265,7 @@ class Api:
         return True
 
     def _toast_image(self, image):
-        """Local file path for the toast image. Remote http(s) URLs (e.g. a scorer's
+        """Local file path for the toast image (Windows). Remote http(s) URLs (e.g. a scorer's
         photo) are downloaded first — WinRT unpackaged toasts can't load web images.
         Falls back to the bundled app icon."""
         default = os.path.join(app_root(), "assets", "icon.png")   # the app icon
@@ -264,7 +291,10 @@ class Api:
         return default
 
     def set_live(self, on):
-        """Reflect live state: blinking 🔴 LIVE window title + taskbar icon badge."""
+        """Reflect live state. Windows: blinking 🔴 LIVE window title + taskbar icon badge.
+        macOS has no taskbar overlay, so this is a no-op there; the in-page LIVE badge shows it."""
+        if not IS_WIN:
+            return True
         try:
             start_live_blink() if on else stop_live_blink()   # blinks title + taskbar overlay
         except Exception as e:
@@ -272,35 +302,43 @@ class Api:
         return True
 
     def notify(self, title, body, image=""):
-        # native Windows 11 toast via WinRT through PowerShell (no extra pip deps).
-        # title/body are passed as env vars so quotes in the text can't break the script.
-        # `image` (optional): a photo to show in front instead of the app icon (e.g. the scorer).
+        """Native desktop notification: osascript on macOS, a WinRT toast through PowerShell on Windows."""
         try:
-            # ToastImageAndText02 → image shown in front (appLogoOverride)
-            ps = (
-                "[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,"
-                "ContentType=WindowsRuntime] | Out-Null;"
-                "$t=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent("
-                "[Windows.UI.Notifications.ToastTemplateType]::ToastImageAndText02);"
-                "$img=$t.GetElementsByTagName('image').Item(0);"
-                "$img.SetAttribute('src',$env:WCP_ICON); $img.SetAttribute('placement','appLogoOverride');"
-                "$x=$t.GetElementsByTagName('text');"
-                "$x.Item(0).AppendChild($t.CreateTextNode($env:WCP_TITLE)) | Out-Null;"
-                "$x.Item(1).AppendChild($t.CreateTextNode($env:WCP_BODY)) | Out-Null;"
-                "$toast=[Windows.UI.Notifications.ToastNotification]::new($t);"
-                "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("
-                "'World Cup').Show($toast);"
-            )
-            icon_uri = "file:///" + self._toast_image(image).replace("\\", "/")
-            env = dict(os.environ, WCP_TITLE=str(title), WCP_BODY=str(body), WCP_ICON=icon_uri)
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-                env=env, check=False,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
+            if IS_MAC:
+                script = (f'display notification {json.dumps(str(body))} '
+                          f'with title {json.dumps(str(title))}')
+                subprocess.run(["osascript", "-e", script], check=False)
+            elif IS_WIN:
+                self._notify_windows(title, body, image)
         except Exception as e:
             print(f"[warn] notify: {e}")
         return True
+
+    def _notify_windows(self, title, body, image):
+        # title/body are passed as env vars so quotes in the text can't break the script.
+        # `image` (optional): a photo to show in front instead of the app icon (e.g. the scorer).
+        # ToastImageAndText02 → image shown in front (appLogoOverride)
+        ps = (
+            "[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,"
+            "ContentType=WindowsRuntime] | Out-Null;"
+            "$t=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent("
+            "[Windows.UI.Notifications.ToastTemplateType]::ToastImageAndText02);"
+            "$img=$t.GetElementsByTagName('image').Item(0);"
+            "$img.SetAttribute('src',$env:WCP_ICON); $img.SetAttribute('placement','appLogoOverride');"
+            "$x=$t.GetElementsByTagName('text');"
+            "$x.Item(0).AppendChild($t.CreateTextNode($env:WCP_TITLE)) | Out-Null;"
+            "$x.Item(1).AppendChild($t.CreateTextNode($env:WCP_BODY)) | Out-Null;"
+            "$toast=[Windows.UI.Notifications.ToastNotification]::new($t);"
+            "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("
+            "'World Cup').Show($toast);"
+        )
+        icon_uri = "file:///" + self._toast_image(image).replace("\\", "/")
+        env = dict(os.environ, WCP_TITLE=str(title), WCP_BODY=str(body), WCP_ICON=icon_uri)
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            env=env, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
 
 
 def prebuild_static():
@@ -308,6 +346,12 @@ def prebuild_static():
     background so detail popups open instantly. Permanent cache → runs once for real;
     later launches find everything cached and just zip through."""
     base = f"http://{HOST}:{PORT}"
+    # Warm the standings first so the Groups view is ready the moment it's opened
+    # (a fresh install has an empty cache → the first click would otherwise cold-fetch).
+    try:
+        urllib.request.urlopen(f"{base}/api/standings", timeout=20).read()
+    except Exception as e:
+        print(f"[warn] prebuild standings: {e}")
     try:
         with urllib.request.urlopen(f"{base}/api/matches", timeout=15) as r:
             matches = json.loads(r.read()).get("matches", [])
@@ -329,19 +373,25 @@ def prebuild_static():
 
 def main():
     threading.Thread(target=serve, daemon=True).start()
-    wait_until_ready()
+    if not wait_until_ready() and IS_MAC:
+        print("[error] Server failed to start. Exiting.")
+        return
     threading.Thread(target=prebuild_static, daemon=True).start()
     webview.create_window(
         title="World Cup",
         url=f"http://{HOST}:{PORT}/",
         width=1680, height=1040, min_size=(1024, 680),
-        maximized=False,
+        maximized=IS_MAC,
         background_color="#050505", confirm_close=False,
         js_api=Api(),
     )
-    # Windows: gui defaults to EdgeChromium (WebView2); the taskbar icon comes
-    # from the .exe (icon.ico). set_app_icon is a no-op kept for parity.
-    webview.start(set_app_icon, gui="edgechromium")
+    if IS_WIN:
+        # gui defaults to EdgeChromium (WebView2); the taskbar icon comes from the .exe (icon.ico).
+        webview.start(set_app_icon, gui="edgechromium")
+    else:
+        # macOS uses WebKit; set the Dock icon once the Cocoa event loop is up.
+        # The bundled .app also carries icon.icns from the spec.
+        webview.start(set_app_icon)
 
 
 if __name__ == "__main__":

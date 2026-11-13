@@ -1,7 +1,7 @@
 # World Cup Pilot — 작업 규약 (Claude)
 
-개인용 Windows 데스크톱 FIFA 월드컵 뷰어 + 예측 엔진. `worldcup.py`(런처) + `server.py`(로컬 서버
-`127.0.0.1:8770`) + `worldcup.html`(단일 UI) + PyInstaller 단일 exe(`worldcup_win.spec`). **Windows 전용.**
+개인용 데스크톱(Windows·macOS) FIFA 월드컵 뷰어 + 예측 엔진. `worldcup.py`(런처) + `server.py`(로컬 서버
+`127.0.0.1:8770`) + `worldcup.html`(단일 UI) + PyInstaller 단일 exe(`worldcup_win.spec`). **Windows·macOS.** `worldcup.py` 하나가 `sys.platform` 으로 분기(알림: PowerShell 토스트 / osascript, 작업표시줄 LIVE 배지는 Windows만, 아이콘). 맥 빌드는 `worldcup_mac.spec` + `build_mac.sh`(앱 아이콘에서 icns 생성 — FIFA 엠블럼 쓰지 않음).
 
 ---
 
